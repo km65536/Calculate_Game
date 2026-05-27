@@ -69,7 +69,7 @@ function movePlayer(dx, dy) {
     const nextY = player.y + dy;
 
     // プレイヤーの移動先がマップの範囲外なら何もしない
-    if (nextY < 0 || nextY >= map.length || nextX < 0 || nextX >= map[0].length) {
+    if (nextY < 0 || nextY >= map.length || nextX < 0 || nextX >= map[nextY].length) {
         return;
     }
 
@@ -80,39 +80,98 @@ function movePlayer(dx, dy) {
         return;
     }
 
-    // 移動先がブロック（2）の場合、連続するブロックの数を調べる
+    // 移動先がブロック（2）の場合
     if (map[nextY][nextX] === 2) {
-        let blockCount = 0;
         let checkX = nextX;
         let checkY = nextY;
 
-        // 進行方向にブロックがいくつ並んでいるか数える
+        // 進行方向に並んでいるブロックをスキップして、その「先にあるマス」を探索する
         while (
             checkY >= 0 && checkY < map.length &&
-            checkX >= 0 && checkX < map[0].length &&
+            checkX >= 0 && checkX < map[checkY].length &&
             map[checkY][checkX] === 2
         ) {
-            blockCount++;
             checkX += dx;
             checkY += dy;
         }
 
-        // 連続したブロックの「さらにその先」の座標
-        const finalX = checkX;
-        const finalY = checkY;
-
-        // ブロックの先の座標がマップの範囲内であり、かつ床（0）であるかチェック
-        if (
-            finalY >= 0 && finalY < map.length &&
-            finalX >= 0 && finalX < map[0].length &&
-            map[finalY][finalX] === 0
-        ) {
-            // 後ろのブロックから順番に1マスずつ先にずらしていく
-            for (let i = blockCount; i > 0; i--) {
-                const currentBlockX = nextX + dx * (i - 1);
-                const currentBlockY = nextY + dy * (i - 1);
+        // 探索した「先にあるマス」がマップの範囲内かチェック
+        if (checkY >= 0 && checkY < map.length && checkX >= 0 && checkX < map[checkY].length) {
+            // そのマスが「床（0）」であれば、並んでいるブロックすべてを押し出せる
+            if (map[checkY][checkX] === 0) {
                 
-                map[currentBlockY + dy][currentBlockX + dx] = 2; // 先のマスをブロックにする
-            }
+                // ブロックの並びの終点（checkX, checkY）からプレイヤーの目の前（nextX, nextY）まで、
+                // 逆方向にたどりながらブロック（2）を1マスずつ後ろにずらしていく
+                let shiftX = checkX;
+                let shiftY = checkY;
 
-            //
+                while (shiftX !== nextX || shiftY !== nextY) {
+                    const prevX = shiftX - dx;
+                    const prevY = shiftY - dy;
+                    map[shiftY][shiftX] = map[prevY][prevX];
+                    shiftX = prevX;
+                    shiftY = prevY;
+                }
+
+                // プレイヤーが元々いたマス（または直前のブロックがあったマス）を床（0）にする
+                map[nextY][nextX] = 0;
+
+                // プレイヤーを1マス前進させる
+                player.x = nextX;
+                player.y = nextY;
+            }
+        }
+    }
+}
+
+// 移動と再描画を一括で行う関数
+function handleMove(dx, dy) {
+    movePlayer(dx, dy);
+    draw();
+}
+
+// キーボード入力のイベントリスナー
+window.addEventListener("keydown", function(event) {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+        event.preventDefault();
+    }
+
+    switch(event.key) {
+        case "ArrowUp":
+            handleMove(0, -1);
+            break;
+        case "ArrowDown":
+            handleMove(0, 1);
+            break;
+        case "ArrowLeft":
+            handleMove(-1, 0);
+            break;
+        case "ArrowRight":
+            handleMove(1, 0);
+            break;
+    }
+});
+
+// スマホ用バーチャルボタンのイベント設定
+const btns = [
+    { id: "btn-up", dx: 0, dy: -1 },
+    { id: "btn-down", dx: 0, dy: 1 },
+    { id: "btn-left", dx: -1, dy: 0 },
+    { id: "btn-right", dx: 1, dy: 0 }
+];
+
+btns.forEach(btn => {
+    const element = document.getElementById(btn.id);
+    if (element) {
+        element.addEventListener("touchstart", function(event) {
+            event.preventDefault();
+            handleMove(btn.dx, btn.dy);
+        });
+        element.addEventListener("click", function(event) {
+            handleMove(btn.dx, btn.dy);
+        });
+    }
+});
+
+// 最初に map1.csv を読み込む
+loadMapCSV("./map/map1.csv");

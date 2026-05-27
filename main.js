@@ -61,14 +61,14 @@ function draw() {
     ctx.fillRect(player.x * TILE_SIZE, player.y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
 }
 
-// 移動とブロックの押し出し処理（衝突判定つき）
+// 移動と複数ブロックの押し出し処理（衝突判定つき）
 function movePlayer(dx, dy) {
     if (map.length === 0) return;
 
     const nextX = player.x + dx;
     const nextY = player.y + dy;
 
-    // マップの範囲外チェック
+    // プレイヤーの移動先がマップの範囲外なら何もしない
     if (nextY < 0 || nextY >= map.length || nextX < 0 || nextX >= map[0].length) {
         return;
     }
@@ -77,78 +77,42 @@ function movePlayer(dx, dy) {
     if (map[nextY][nextX] === 0) {
         player.x = nextX;
         player.y = nextY;
+        return;
     }
-    // 移動先がブロック（2）の場合
-    else if (map[nextY][nextX] === 2) {
-        // ブロックのさらに移動先の座標を計算
-        const blockNextX = nextX + dx;
-        const blockNextY = nextY + dy;
 
-        // ブロックの移動先がマップ内かつ床（0）であるかチェック
-        if (
-            blockNextY >= 0 && blockNextY < map.length &&
-            blockNextX >= 0 && blockNextX < map[0].length &&
-            map[blockNextY][blockNextX] === 0
+    // 移動先がブロック（2）の場合、連続するブロックの数を調べる
+    if (map[nextY][nextX] === 2) {
+        let blockCount = 0;
+        let checkX = nextX;
+        let checkY = nextY;
+
+        // 進行方向にブロックがいくつ並んでいるか数える
+        while (
+            checkY >= 0 && checkY < map.length &&
+            checkX >= 0 && checkX < map[0].length &&
+            map[checkY][checkX] === 2
         ) {
-            // ブロックを移動させる（元の場所を床にし、先の場所をブロックにする）
-            map[nextY][nextX] = 0;
-            map[blockNextY][blockNextX] = 2;
-
-            // プレイヤーを移動させる
-            player.x = nextX;
-            player.y = nextY;
+            blockCount++;
+            checkX += dx;
+            checkY += dy;
         }
-    }
-}
 
-// 移動と再描画を一括で行う関数
-function handleMove(dx, dy) {
-    movePlayer(dx, dy);
-    draw();
-}
+        // 連続したブロックの「さらにその先」の座標
+        const finalX = checkX;
+        const finalY = checkY;
 
-// キーボード入力のイベントリスナー
-window.addEventListener("keydown", function(event) {
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-        event.preventDefault();
-    }
+        // ブロックの先の座標がマップの範囲内であり、かつ床（0）であるかチェック
+        if (
+            finalY >= 0 && finalY < map.length &&
+            finalX >= 0 && finalX < map[0].length &&
+            map[finalY][finalX] === 0
+        ) {
+            // 後ろのブロックから順番に1マスずつ先にずらしていく
+            for (let i = blockCount; i > 0; i--) {
+                const currentBlockX = nextX + dx * (i - 1);
+                const currentBlockY = nextY + dy * (i - 1);
+                
+                map[currentBlockY + dy][currentBlockX + dx] = 2; // 先のマスをブロックにする
+            }
 
-    switch(event.key) {
-        case "ArrowUp":
-            handleMove(0, -1);
-            break;
-        case "ArrowDown":
-            handleMove(0, 1);
-            break;
-        case "ArrowLeft":
-            handleMove(-1, 0);
-            break;
-        case "ArrowRight":
-            handleMove(1, 0);
-            break;
-    }
-});
-
-// スマホ用バーチャルボタンのイベント設定
-const btns = [
-    { id: "btn-up", dx: 0, dy: -1 },
-    { id: "btn-down", dx: 0, dy: 1 },
-    { id: "btn-left", dx: -1, dy: 0 },
-    { id: "btn-right", dx: 1, dy: 0 }
-];
-
-btns.forEach(btn => {
-    const element = document.getElementById(btn.id);
-    if (element) {
-        element.addEventListener("touchstart", function(event) {
-            event.preventDefault();
-            handleMove(btn.dx, btn.dy);
-        });
-        element.addEventListener("click", function(event) {
-            handleMove(btn.dx, btn.dy);
-        });
-    }
-});
-
-// 最初に map1.csv を読み込む
-loadMapCSV("./map/map1.csv");
+            //

@@ -1,0 +1,63 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: sans-serif;
+    color: white;
+    flex-direction: column;
+    touch-action: none;
+    overflow: hidden;
+}
+canvas {
+    border: 4px solid #fff;
+    background-color: #000;
+    max-width: 90%;
+    height: auto;
+}
+#info {
+    margin-top: 10px;
+    font-size: 14px;
+    text-align: center;
+    padding: 0 10px;
+}
+
+/* 十字キーのレイアウト設定 */
+#controller {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    width: 100%;
+}
+.middle-row {
+    display: flex;
+    align-items: center;
+}
+.ctrl-btn {
+    width: 60px;
+    height: 60px;
+    margin: 5px;
+    background-color: #444;
+    color: white;
+    border: 2px solid #888;
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+.ctrl-btn:active {
+    background-color: #666;
+}
+.spacer {
+    width: 60px;
+    height: 60px;
+    margin: 5px;
+}

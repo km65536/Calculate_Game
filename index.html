@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tile Map Game - Push Block</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <canvas id="gameCanvas" width="320" height="320"></canvas>
+    <div id="info">矢印キーまたはボタンで移動。黄色は押せるブロックです。</div>
+
+    <div id="controller">
+        <button id="btn-up" class="ctrl-btn">↑</button>
+        <div class="middle-row">
+            <button id="btn-left" class="ctrl-btn">←</button>
+            <div class="spacer"></div>
+            <button id="btn-right" class="ctrl-btn">→</button>
+        </div>
+        <button id="btn-down" class="ctrl-btn">↓</button>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

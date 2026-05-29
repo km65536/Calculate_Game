@@ -2,7 +2,7 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 32;
-// アニメーションの移動速度（1フレームに移動するピクセル数。32の約数「2, 4, 8」などにするとぴったり止まります）
+// アニメーションの移動速度
 const MOVE_SPEED = 4;
 
 // マップデータを保持する配列
@@ -10,11 +10,11 @@ let map = [];
 
 // プレイヤーのデータ
 const player = {
-    x: 1,  // タイル座標X
-    y: 1,  // タイル座標Y
-    px: 32, // 描画用ピクセル座標X (初期値: 1 * 32)
-    py: 32, // 描画用ピクセル座標Y (初期値: 1 * 32)
-    isMoving: false // 移動アニメーション中かどうかのフラグ
+    x: 1,
+    y: 1,
+    px: 32,
+    py: 32,
+    isMoving: false
 };
 
 // 動いているブロックの情報を管理する配列
@@ -43,6 +43,32 @@ async function loadMapCSV(url) {
     }
 }
 
+// 該当のマスが「押せるブロック」かどうかを判定する関数
+function isBlock(tileValue) {
+    // 11〜19（数字）または 21〜25（記号）ならブロック
+    return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 25);
+}
+
+// ブロックのタイプに応じた見た目（色と文字）を取得する関数
+function getBlockStyle(tileValue) {
+    let color = "#333333";
+    let text = "";
+
+    // 数字ブロック (1-9): 青系統
+    if (tileValue >= 11 && tileValue <= 19) {
+        color = "#3399ff";
+        text = String(tileValue - 10); // 11なら"1"、12なら"2"
+    }
+    // 記号ブロック: 黄系統
+    else if (tileValue >= 21 && tileValue <= 25) {
+        color = "#ffcc00";
+        const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝" };
+        text = signs[tileValue];
+    }
+
+    return { color, text };
+}
+
 // 移動処理（アニメーションの開始トリガー）
 function movePlayer(dx, dy) {
     if (map.length === 0 || player.isMoving) return;
@@ -63,19 +89,19 @@ function movePlayer(dx, dy) {
         return;
     }
 
-    // 2. 移動先がブロック（2）の場合
-    if (map[nextY][nextX] === 2) {
+    // 2. 移動先が各種ブロックの場合
+    if (isBlock(map[nextY][nextX])) {
         let checkX = nextX;
         let checkY = nextY;
-        const blocksToMove = []; // 動かす対象のブロックたちのタイル座標を記録
+        const blocksToMove = []; // 動かす対象のブロックたちの座標と種類を記録
 
         // 進行方向に並んでいるブロックをすべてリストアップする
         while (
             checkY >= 0 && checkY < map.length &&
             checkX >= 0 && checkX < map[checkY].length &&
-            map[checkY][checkX] === 2
+            isBlock(map[checkY][checkX])
         ) {
-            blocksToMove.push({ x: checkX, y: checkY });
+            blocksToMove.push({ x: checkX, y: checkY, value: map[checkY][checkX] });
             checkX += dx;
             checkY += dy;
         }
@@ -90,14 +116,14 @@ function movePlayer(dx, dy) {
             finalX >= 0 && finalX < map[finalY].length &&
             map[finalY][finalX] === 0
         ) {
-            // 内部データ（配列）を先に更新する。
-            // 後ろのブロックから順番に1マスずつ先にずらしていく
+            // 内部データ（配列）を先に更新。後ろのブロックから順番に1マスずつ先にずらす
             for (let i = blocksToMove.length - 1; i >= 0; i--) {
                 const b = blocksToMove[i];
-                map[b.y + dy][b.x + dx] = 2;
+                map[b.y + dy][b.x + dx] = b.value;
                 
                 // アニメーション用に描画初期座標を持たせたオブジェクトを作る
                 movingBlocks.push({
+                    value: b.value,
                     px: b.x * TILE_SIZE,
                     py: b.y * TILE_SIZE,
                     tx: (b.x + dx) * TILE_SIZE,
@@ -122,15 +148,11 @@ function update() {
         const targetPx = player.x * TILE_SIZE;
         const targetPy = player.y * TILE_SIZE;
 
-        // X座標を目標に近づける
         if (player.px < targetPx) player.px = Math.min(player.px + MOVE_SPEED, targetPx);
         if (player.px > targetPx) player.px = Math.max(player.px - MOVE_SPEED, targetPx);
-
-        // Y座標を目標に近づける
         if (player.py < targetPy) player.py = Math.min(player.py + MOVE_SPEED, targetPy);
         if (player.py > targetPy) player.py = Math.max(player.py - MOVE_SPEED, targetPy);
 
-        // 目標に完全に到達したかチェック
         if (player.px === targetPx && player.py === targetPy) {
             player.isMoving = false;
         }
@@ -150,11 +172,20 @@ function update() {
     movingBlocks = movingBlocks.filter(b => b.px !== b.tx || b.py !== b.ty);
 }
 
+// ブロックの文字を描画する共通関数
+function drawBlockText(text, px, py) {
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+}
+
 // 描画関数
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // マップの描画（床と壁だけを描画。ブロックはアニメーションがあるのでここでは除外するか、静止しているものだけを描画する）
+    // マップの描画（床、壁、静止しているブロック）
     for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[y].length; x++) {
             if (map[y][x] === 1) {
@@ -162,30 +193,34 @@ function draw() {
                 ctx.fillStyle = "#ff4d4d";
                 ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
             } else {
-                // 床（暗いグレー、動いているブロックの下にも床を描画するため一律で塗る）
+                // 床（暗いグレー）
                 ctx.fillStyle = "#333333";
                 ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
                 
                 // 動いていない（固定されている）ブロックを描画
-                if (map[y][x] === 2) {
+                if (isBlock(map[y][x])) {
                     // 動いているブロックのリストに存在しない場合のみ描画
                     const isMoving = movingBlocks.some(b => Math.floor(b.tx / TILE_SIZE) === x && Math.floor(b.ty / TILE_SIZE) === y);
                     if (!isMoving) {
-                        ctx.fillStyle = "#ffcc00";
+                        const style = getBlockStyle(map[y][x]);
+                        ctx.fillStyle = style.color;
                         ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
+                        drawBlockText(style.text, x * TILE_SIZE, y * TILE_SIZE);
                     }
                 }
             }
         }
     }
 
-    // アニメーション中のブロックを描画（黄色）
-    ctx.fillStyle = "#ffcc00";
+    // アニメーション中のブロックを描画
     movingBlocks.forEach(b => {
+        const style = getBlockStyle(b.value);
+        ctx.fillStyle = style.color;
         ctx.fillRect(b.px, b.py, TILE_SIZE - 1, TILE_SIZE - 1);
+        drawBlockText(style.text, b.px, b.py);
     });
 
-    // プレイヤーの描画（緑色、計算されたピクセル座標を使用）
+    // プレイヤーの描画（緑色）
     ctx.fillStyle = "#4dff4d";
     ctx.fillRect(player.px, player.py, TILE_SIZE - 1, TILE_SIZE - 1);
 }
@@ -203,7 +238,6 @@ window.addEventListener("keydown", function(event) {
         event.preventDefault();
     }
 
-    // 移動中は入力を無視
     if (player.isMoving) return;
 
     switch(event.key) {

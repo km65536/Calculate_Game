@@ -43,30 +43,46 @@ async function loadMapCSV(url) {
     }
 }
 
-// 該当のマスが「押せるブロック」かどうかを判定する関数
-function isBlock(tileValue) {
-    // 11〜19（数字）または 21〜25（記号）ならブロック
+// 該当のマスが「押して動かせるブロック」かどうかを判定する関数
+function isMovableBlock(tileValue) {
+    // 11〜19（動く数字）または 21〜25（動く記号）なら動かせるブロック
     return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 25);
 }
 
-// ブロックのタイプに応じた見た目（色と文字）を取得する関数
+// 該当のマスが「絶対に動かない固定ブロック」かどうかを判定する関数
+function isImmovableBlock(tileValue) {
+    // 31〜39（動かない数字）または 41〜45（動かない記号）なら固定ブロック
+    return (tileValue >= 31 && tileValue <= 39) || (tileValue >= 41 && tileValue <= 45);
+}
+
+// ブロックのタイプに応じた見た目（色、文字、赤枠フラグ）を取得する関数
 function getBlockStyle(tileValue) {
     let color = "#333333";
     let text = "";
+    let isImmovable = false;
 
-    // 数字ブロック (1-9): 青系統
+    // --- 動くブロック ---
     if (tileValue >= 11 && tileValue <= 19) {
-        color = "#3399ff";
-        text = String(tileValue - 10); // 11なら"1"、12なら"2"
-    }
-    // 記号ブロック: 黄系統
-    else if (tileValue >= 21 && tileValue <= 25) {
-        color = "#ffcc00";
+        color = "#3399ff"; // 青
+        text = String(tileValue - 10);
+    } else if (tileValue >= 21 && tileValue <= 25) {
+        color = "#ffcc00"; // 黄
         const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝" };
         text = signs[tileValue];
     }
+    // --- 動かないブロック (赤枠) ---
+    else if (tileValue >= 31 && tileValue <= 39) {
+        color = "#3399ff"; // 青
+        text = String(tileValue - 30);
+        isImmovable = true;
+    } else if (tileValue >= 41 && tileValue <= 45) {
+        color = "#ffcc00"; // 黄
+        const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝" };
+        text = signs[tileValue];
+        isImmovable = true;
+    }
 
-    return { color, text };
+    return { color, text, isImmovable };
 }
 
 // 移動処理（アニメーションの開始トリガー）
@@ -81,7 +97,7 @@ function movePlayer(dx, dy) {
         return;
     }
 
-    // 1. 移動先が床（0）の場合
+    // 1. 移動先が床（0）の場合、そのまま前進
     if (map[nextY][nextX] === 0) {
         player.x = nextX;
         player.y = nextY;
@@ -89,39 +105,39 @@ function movePlayer(dx, dy) {
         return;
     }
 
-    // 2. 移動先が各種ブロックの場合
-    if (isBlock(map[nextY][nextX])) {
+    // 2. 移動先が動くブロック（11〜25）の場合
+    if (isMovableBlock(map[nextY][nextX])) {
         let checkX = nextX;
         let checkY = nextY;
-        const blocksToMove = []; // 動かす対象のブロックたちの座標と種類を記録
+        const blocksToMove = [];
 
-        // 進行方向に並んでいるブロックをすべてリストアップする
+        // 進行方向に並んでいる「動くブロック」をすべてリストアップ
         while (
             checkY >= 0 && checkY < map.length &&
             checkX >= 0 && checkX < map[checkY].length &&
-            isBlock(map[checkY][checkX])
+            isMovableBlock(map[checkY][checkX])
         ) {
             blocksToMove.push({ x: checkX, y: checkY, value: map[checkY][checkX] });
             checkX += dx;
             checkY += dy;
         }
 
-        // 連続したブロックの「さらにその先」の座標
+        // 連続した動くブロックの「さらにその先にあるマス」
         const finalX = checkX;
         const finalY = checkY;
 
-        // ブロックの先の座標がマップ内かつ「床（0）」であれば、すべて押し出せる
+        // そのマスがマップ内であり、かつ「床（0）」であれば、すべて押し出せる
+        // (先が壁(1)や、動かないブロック(31〜45)だった場合は、条件を満たさないので動かない)
         if (
             finalY >= 0 && finalY < map.length &&
             finalX >= 0 && finalX < map[finalY].length &&
             map[finalY][finalX] === 0
         ) {
-            // 内部データ（配列）を先に更新。後ろのブロックから順番に1マスずつ先にずらす
+            // 内部配列データを後ろから順に1マスずつ先にずらす
             for (let i = blocksToMove.length - 1; i >= 0; i--) {
                 const b = blocksToMove[i];
                 map[b.y + dy][b.x + dx] = b.value;
                 
-                // アニメーション用に描画初期座標を持たせたオブジェクトを作る
                 movingBlocks.push({
                     value: b.value,
                     px: b.x * TILE_SIZE,
@@ -130,7 +146,7 @@ function movePlayer(dx, dy) {
                     ty: (b.y + dy) * TILE_SIZE
                 });
             }
-            // プレイヤーのすぐ目の前にあったブロックの場所を床（0）にする
+            // プレイヤーの目の前にあったブロックの場所を床（0）にする
             map[nextY][nextX] = 0;
 
             // プレイヤーを移動状態にする
@@ -143,7 +159,6 @@ function movePlayer(dx, dy) {
 
 // 座標の更新（アニメーション計算）
 function update() {
-    // プレイヤーの移動アニメーション計算
     if (player.isMoving) {
         const targetPx = player.x * TILE_SIZE;
         const targetPy = player.y * TILE_SIZE;
@@ -158,7 +173,6 @@ function update() {
         }
     }
 
-    // ブロックの移動アニメーション計算
     for (let i = 0; i < movingBlocks.length; i++) {
         const b = movingBlocks[i];
         
@@ -168,24 +182,36 @@ function update() {
         if (b.py > b.ty) b.py = Math.max(b.py - MOVE_SPEED, b.ty);
     }
 
-    // アニメーションがすべて終わったブロックを配列から削除
     movingBlocks = movingBlocks.filter(b => b.px !== b.tx || b.py !== b.ty);
 }
 
-// ブロックの文字を描画する共通関数
-function drawBlockText(text, px, py) {
+// ブロックの装飾と文字を描画する関数
+function drawBlock(style, px, py) {
+    // ベースとなるブロックの塗りつぶし
+    ctx.fillStyle = style.color;
+    ctx.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+
+    // 動かないブロック（赤枠）の処理
+    if (style.isImmovable) {
+        ctx.strokeStyle = "#ff4d4d"; // 赤い枠線
+        ctx.lineWidth = 3;           // 枠線の太さ
+        // 内側に綺麗な枠線を引くために、座標を1ピクセル内側にずらす
+        ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
+    }
+
+    // 文字の描画
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+    ctx.fillText(style.text, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
 }
 
 // 描画関数
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // マップの描画（床、壁、静止しているブロック）
+    // マップの描画
     for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[y].length; x++) {
             if (map[y][x] === 1) {
@@ -197,15 +223,14 @@ function draw() {
                 ctx.fillStyle = "#333333";
                 ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
                 
-                // 動いていない（固定されている）ブロックを描画
-                if (isBlock(map[y][x])) {
-                    // 動いているブロックのリストに存在しない場合のみ描画
+                // 静止しているブロックの描画（動くもの、動かないもの両方）
+                const tileValue = map[y][x];
+                if (isMovableBlock(tileValue) || isImmovableBlock(tileValue)) {
+                    // アニメーション移動中のブロックはここでは描画しない
                     const isMoving = movingBlocks.some(b => Math.floor(b.tx / TILE_SIZE) === x && Math.floor(b.ty / TILE_SIZE) === y);
                     if (!isMoving) {
-                        const style = getBlockStyle(map[y][x]);
-                        ctx.fillStyle = style.color;
-                        ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
-                        drawBlockText(style.text, x * TILE_SIZE, y * TILE_SIZE);
+                        const style = getBlockStyle(tileValue);
+                        drawBlock(style, x * TILE_SIZE, y * TILE_SIZE);
                     }
                 }
             }
@@ -215,9 +240,7 @@ function draw() {
     // アニメーション中のブロックを描画
     movingBlocks.forEach(b => {
         const style = getBlockStyle(b.value);
-        ctx.fillStyle = style.color;
-        ctx.fillRect(b.px, b.py, TILE_SIZE - 1, TILE_SIZE - 1);
-        drawBlockText(style.text, b.px, b.py);
+        drawBlock(style, b.px, b.py);
     });
 
     // プレイヤーの描画（緑色）

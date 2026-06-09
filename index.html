@@ -3,22 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tile Map Game - Push Block</title>
+    <title>Math Puzzle Quest</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <canvas id="gameCanvas" width="320" height="320"></canvas>
-    <div id="info">矢印キーまたはボタンで移動。黄色は押せるブロックです。</div>
+    <div id="app-container">
+        <header id="game-header">
+            <h1>MATH PUZZLE QUEST</h1>
+            <div class="subtitle">数字と記号のブロックパズル</div>
+        </header>
 
-    <div id="controller">
-        <button id="btn-up" class="ctrl-btn">↑</button>
-        <div class="middle-row">
-            <button id="btn-left" class="ctrl-btn">←</button>
-            <div class="spacer"></div>
-            <button id="btn-right" class="ctrl-btn">→</button>
+        <main id="stage-area">
+            <canvas id="gameCanvas"></canvas>
+        </main>
+
+        <div id="info-bar">
+            <span class="desktop-tip">PC: 矢印キーで移動 / Zキーで戻る</span>
+            <span class="mobile-tip">黄色ブロックは移動可能 / 赤枠は固定</span>
         </div>
-        <button id="btn-down" class="ctrl-btn">↓</button>
+
+        <footer id="input-area">
+            <div class="system-controls">
+                <button id="btn-undo" class="sys-btn">
+                    <span class="icon">↩</span>
+                    <span class="label">1手戻す</span>
+                </button>
+            </div>
+
+            <div id="controller">
+                <button id="btn-up" class="ctrl-btn up">↑</button>
+                <div class="middle-row">
+                    <button id="btn-left" class="ctrl-btn left">←</button>
+                    <div class="spacer"></div>
+                    <button id="btn-right" class="ctrl-btn right">→</button>
+                </div>
+                <button id="btn-down" class="ctrl-btn down">↓</button>
+            </div>
+        </footer>
     </div>
 
     <script type="module" src="main.js"></script>

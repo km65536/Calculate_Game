@@ -102,12 +102,12 @@ function undo() {
 
 // 該当のマスが「押して動かせるブロック」かどうかを判定する関数
 function isMovableBlock(tileValue) {
-    return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 26);
+    return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 28);
 }
 
 // 該当のマスが「絶対に動かない固定ブロック」かどうかを判定する関数
 function isImmovableBlock(tileValue) {
-    return (tileValue >= 31 && tileValue <= 39) || (tileValue >= 41 && tileValue <= 46);
+    return (tileValue >= 31 && tileValue <= 39) || (tileValue >= 41 && tileValue <= 48);
 }
 
 // 該当のマスが「何らかのブロック」かどうかを判定する関数
@@ -125,18 +125,19 @@ function getBlockStyle(tileValue) {
     if (tileValue >= 11 && tileValue <= 19) {
         color = "#3399ff";
         text = String(tileValue - 10);
-    } else if (tileValue >= 21 && tileValue <= 26) {
+    } else if (tileValue >= 21 && tileValue <= 28) {
         color = "#ffcc00";
-        const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝", 26: "＝" };
+        const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝", 26: "＝", 27: "（", 28: "）" };
         text = signs[tileValue];
         if (tileValue === 26) isVerticalSign = true;
     } else if (tileValue >= 31 && tileValue <= 39) {
         color = "#3399ff";
         text = String(tileValue - 30);
         isImmovable = true;
-    } else if (tileValue >= 41 && tileValue <= 46) {
+    } else if (tileValue >= 41 && tileValue <= 48) {
+        // エラーの原因になっていた不要な2行（textColor, border）を完全に除去しました
         color = "#ffcc00";
-        const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝", 46: "＝" };
+        const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝", 46: "＝", 47: "（", 48: "）" };
         text = signs[tileValue];
         isImmovable = true;
         if (tileValue === 46) isVerticalSign = true;
@@ -150,38 +151,32 @@ function parseTileToFormulaString(tileValue) {
     if (tileValue >= 11 && tileValue <= 19) return String(tileValue - 10);
     if (tileValue >= 31 && tileValue <= 39) return String(tileValue - 30);
     const signs = {
-        21: "+", 22: "-", 23: "*", 24: "/", 25: "=", 26: "=",
-        41: "+", 42: "-", 43: "*", 44: "/", 45: "=", 46: "="
+        21: "+", 22: "-", 23: "*", 24: "/", 25: "=", 26: "=", 27: "(", 28: ")",
+        41: "+", 42: "-", 43: "*", 44: "/", 45: "=", 46: "=", 47: "(", 48: ")"
     };
     return signs[tileValue] || "";
 }
 
 // 組み立てた数式の文字列が、正しい等式になっているか eval() を使って判別する関数
 function isValidEquation(formulaTokens) {
-    // 式の中に「=」がちょうど1つだけ含まれているか確認
     const eqCount = formulaTokens.filter(t => t === "=").length;
     if (eqCount !== 1) return false;
 
-    // 「=」の場所で左辺と右辺の文字列に分解する
     const eqIndex = formulaTokens.indexOf("=");
     const leftExpression = formulaTokens.slice(0, eqIndex).join("");
     const rightExpression = formulaTokens.slice(eqIndex + 1).join("");
 
-    // 左辺・右辺のどちらかが空っぽなら不正
     if (!leftExpression || !rightExpression) return false;
 
     try {
-        // eval() を使って左辺と右辺をそれぞれ JavaScript 標準の計算機で実行
         const leftVal = eval(leftExpression);
         const rightVal = eval(rightExpression);
 
         if (leftVal === undefined || rightVal === undefined) return false;
 
-        // コンピュータ特有の小数の計算誤差（例: 0.300000004）を丸めて安全に比較する
-        // 差が 0.00001 未満なら「同じ数値」とみなす
+        // 浮動小数点誤差の丸め処理
         return Math.abs(leftVal - rightVal) < 0.00001;
     } catch (e) {
-        // 万が一、数式の並び順が不正で eval がエラーを出した場合は不成立（False）とする
         return false;
     }
 }
@@ -192,7 +187,6 @@ function checkEquationAt(eqX, eqY, isVertical) {
     const dx = isVertical ? 0 : 1;
     const dy = isVertical ? 1 : 0;
 
-    // 1. 式の「開始地点（左端または上端）」を求めて逆方向に遡る
     let startX = eqX;
     let startY = eqY;
     while (true) {
@@ -204,7 +198,6 @@ function checkEquationAt(eqX, eqY, isVertical) {
         startY = prevY;
     }
 
-    // 2. 開始地点から正方向に進みながら、ブロックが連続する限り文字を回収する
     let currentX = startX;
     let currentY = startY;
     while (
@@ -217,7 +210,6 @@ function checkEquationAt(eqX, eqY, isVertical) {
         currentY += dy;
     }
 
-    // 3. 判定関数へ丸ごと引き渡す
     return isValidEquation(formulaTokens);
 }
 
@@ -232,14 +224,12 @@ function checkAllClearConditions() {
         for (let x = 0; x < map[y].length; x++) {
             const tile = map[y][x];
             
-            // 横向きの＝ (25 または 45) -> 左右方向だけをチェック
             if (tile === 25 || tile === 45) {
                 totalEqualsCount++;
                 if (checkEquationAt(x, y, false)) {
                     satisfiedEqualsCount++;
                 }
             }
-            // 縦向きの＝ (26 または 46) -> 上下方向だけをチェック
             else if (tile === 26 || tile === 46) {
                 totalEqualsCount++;
                 if (checkEquationAt(x, y, true)) {
@@ -249,7 +239,6 @@ function checkAllClearConditions() {
         }
     }
 
-    // マップ上のすべての「＝」ブロックの数式が成立していればステージクリア！
     if (totalEqualsCount > 0 && satisfiedEqualsCount === totalEqualsCount) {
         isStageCleared = true;
     }
@@ -347,7 +336,6 @@ function update() {
 
     movingBlocks = movingBlocks.filter(b => b.px !== b.tx || b.py !== b.ty);
 
-    // プレイヤーとブロックのすべての動きが止まっているときにのみクリアチェック
     if (!player.isMoving && movingBlocks.length === 0) {
         checkAllClearConditions();
     }

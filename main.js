@@ -1,6 +1,7 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// 1タイルのサイズ（ピクセル）
 const TILE_SIZE = 32;
 // アニメーションの移動速度
 const MOVE_SPEED = 4;
@@ -20,6 +21,12 @@ const player = {
 // 動いているブロックの情報を管理する配列
 let movingBlocks = [];
 
+// 過去のマップとプレイヤーの状態を記録する履歴スタック（1手戻す機能用）
+const historyStack = [];
+
+// ステージクリアを管理するフラグ
+let isStageCleared = false;
+
 // CSVファイルを読み込んで2次元配列に変換する関数
 async function loadMapCSV(url) {
     try {
@@ -32,10 +39,35 @@ async function loadMapCSV(url) {
         const rows = text.trim().split(/\r?\n/);
         map = rows.map(row => row.split(",").map(Number));
         
-        // 初期位置の設定を反映
+        // --- マップ全体のループ処理 ---
+        const mapRows = map.length;
+        let mapCols = 0;
+
+        for (let y = 0; y < map.length; y++) {
+            if (map[y].length > mapCols) {
+                mapCols = map[y].length;
+            }
+            for (let x = 0; x < map[y].length; x++) {
+                if (map[y][x] === 99) {
+                    player.x = x;
+                    player.y = y;
+                    map[y][x] = 0; // プレイヤーの初期位置は床（0）に置き換える
+                }
+            }
+        }
+
+        // マップデータの大きさに合わせて、Canvasの解像度をぴったりリサイズ
+        canvas.width = mapCols * TILE_SIZE;
+        canvas.height = mapRows * TILE_SIZE;
+
+        // プレイヤーの初期ピクセル座標を、検出したタイル位置に同期
         player.px = player.x * TILE_SIZE;
         player.py = player.y * TILE_SIZE;
         
+        // 各種状態の初期化
+        historyStack.length = 0;
+        isStageCleared = false;
+
         // ゲームループを開始
         gameLoop();
     } catch (error) {
@@ -43,75 +75,210 @@ async function loadMapCSV(url) {
     }
 }
 
+// 現在の状態（マップとプレイヤー位置）を履歴に保存する関数
+function saveToHistory() {
+    const mapCopy = map.map(row => [...row]);
+    
+    historyStack.push({
+        map: mapCopy,
+        playerX: player.x,
+        playerY: player.y
+    });
+}
+
+// 1手前の状態に戻す関数
+function undo() {
+    if (isStageCleared || player.isMoving || movingBlocks.length > 0 || historyStack.length === 0) return;
+
+    const prevState = historyStack.pop();
+
+    map = prevState.map;
+    player.x = prevState.playerX;
+    player.y = prevState.playerY;
+
+    player.px = player.x * TILE_SIZE;
+    player.py = player.y * TILE_SIZE;
+}
+
 // 該当のマスが「押して動かせるブロック」かどうかを判定する関数
 function isMovableBlock(tileValue) {
-    // 11〜19（動く数字）または 21〜25（動く記号）なら動かせるブロック
-    return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 25);
+    return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 26);
 }
 
 // 該当のマスが「絶対に動かない固定ブロック」かどうかを判定する関数
 function isImmovableBlock(tileValue) {
-    // 31〜39（動かない数字）または 41〜45（動かない記号）なら固定ブロック
-    return (tileValue >= 31 && tileValue <= 39) || (tileValue >= 41 && tileValue <= 45);
+    return (tileValue >= 31 && tileValue <= 39) || (tileValue >= 41 && tileValue <= 46);
 }
 
-// ブロックのタイプに応じた見た目（色、文字、赤枠フラグ）を取得する関数
+// 該当のマスが「何らかのブロック」かどうかを判定する関数
+function isAnyBlock(tileValue) {
+    return isMovableBlock(tileValue) || isImmovableBlock(tileValue);
+}
+
+// ブロックのタイプに応じた見た目と情報を取得する関数
 function getBlockStyle(tileValue) {
     let color = "#333333";
     let text = "";
     let isImmovable = false;
+    let isVerticalSign = false;
 
-    // --- 動くブロック ---
     if (tileValue >= 11 && tileValue <= 19) {
-        color = "#3399ff"; // 青
+        color = "#3399ff";
         text = String(tileValue - 10);
-    } else if (tileValue >= 21 && tileValue <= 25) {
-        color = "#ffcc00"; // 黄
-        const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝" };
+    } else if (tileValue >= 21 && tileValue <= 26) {
+        color = "#ffcc00";
+        const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝", 26: "＝" };
         text = signs[tileValue];
-    }
-    // --- 動かないブロック (赤枠) ---
-    else if (tileValue >= 31 && tileValue <= 39) {
-        color = "#3399ff"; // 青
+        if (tileValue === 26) isVerticalSign = true;
+    } else if (tileValue >= 31 && tileValue <= 39) {
+        color = "#3399ff";
         text = String(tileValue - 30);
         isImmovable = true;
-    } else if (tileValue >= 41 && tileValue <= 45) {
-        color = "#ffcc00"; // 黄
-        const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝" };
+    } else if (tileValue >= 41 && tileValue <= 46) {
+        color = "#ffcc00";
+        const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝", 46: "＝" };
         text = signs[tileValue];
         isImmovable = true;
+        if (tileValue === 46) isVerticalSign = true;
     }
 
-    return { color, text, isImmovable };
+    return { color, text, isImmovable, isVerticalSign };
+}
+
+// マスの中身を eval() で計算できる文字列用のパーツ（トークン）に変換する関数
+function parseTileToFormulaString(tileValue) {
+    if (tileValue >= 11 && tileValue <= 19) return String(tileValue - 10);
+    if (tileValue >= 31 && tileValue <= 39) return String(tileValue - 30);
+    const signs = {
+        21: "+", 22: "-", 23: "*", 24: "/", 25: "=", 26: "=",
+        41: "+", 42: "-", 43: "*", 44: "/", 45: "=", 46: "="
+    };
+    return signs[tileValue] || "";
+}
+
+// 組み立てた数式の文字列が、正しい等式になっているか eval() を使って判別する関数
+function isValidEquation(formulaTokens) {
+    // 式の中に「=」がちょうど1つだけ含まれているか確認
+    const eqCount = formulaTokens.filter(t => t === "=").length;
+    if (eqCount !== 1) return false;
+
+    // 「=」の場所で左辺と右辺の文字列に分解する
+    const eqIndex = formulaTokens.indexOf("=");
+    const leftExpression = formulaTokens.slice(0, eqIndex).join("");
+    const rightExpression = formulaTokens.slice(eqIndex + 1).join("");
+
+    // 左辺・右辺のどちらかが空っぽなら不正
+    if (!leftExpression || !rightExpression) return false;
+
+    try {
+        // eval() を使って左辺と右辺をそれぞれ JavaScript 標準の計算機で実行
+        const leftVal = eval(leftExpression);
+        const rightVal = eval(rightExpression);
+
+        if (leftVal === undefined || rightVal === undefined) return false;
+
+        // コンピュータ特有の小数の計算誤差（例: 0.300000004）を丸めて安全に比較する
+        // 差が 0.00001 未満なら「同じ数値」とみなす
+        return Math.abs(leftVal - rightVal) < 0.00001;
+    } catch (e) {
+        // 万が一、数式の並び順が不正で eval がエラーを出した場合は不成立（False）とする
+        return false;
+    }
+}
+
+// 特定の「＝」から繋がる式を、指定された方向（縦か横か）だけで抽出して判定する関数
+function checkEquationAt(eqX, eqY, isVertical) {
+    const formulaTokens = [];
+    const dx = isVertical ? 0 : 1;
+    const dy = isVertical ? 1 : 0;
+
+    // 1. 式の「開始地点（左端または上端）」を求めて逆方向に遡る
+    let startX = eqX;
+    let startY = eqY;
+    while (true) {
+        const prevX = startX - dx;
+        const prevY = startY - dy;
+        if (prevY < 0 || prevY >= map.length || prevX < 0 || prevX >= map[prevY].length) break;
+        if (!isAnyBlock(map[prevY][prevX])) break;
+        startX = prevX;
+        startY = prevY;
+    }
+
+    // 2. 開始地点から正方向に進みながら、ブロックが連続する限り文字を回収する
+    let currentX = startX;
+    let currentY = startY;
+    while (
+        currentY >= 0 && currentY < map.length &&
+        currentX >= 0 && currentX < map[currentY].length &&
+        isAnyBlock(map[currentY][currentX])
+    ) {
+        formulaTokens.push(parseTileToFormulaString(map[currentY][currentX]));
+        currentX += dx;
+        currentY += dy;
+    }
+
+    // 3. 判定関数へ丸ごと引き渡す
+    return isValidEquation(formulaTokens);
+}
+
+// マップ全体のクリア条件を判定する関数
+function checkAllClearConditions() {
+    if (map.length === 0 || isStageCleared) return;
+
+    let totalEqualsCount = 0;
+    let satisfiedEqualsCount = 0;
+
+    for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+            const tile = map[y][x];
+            
+            // 横向きの＝ (25 または 45) -> 左右方向だけをチェック
+            if (tile === 25 || tile === 45) {
+                totalEqualsCount++;
+                if (checkEquationAt(x, y, false)) {
+                    satisfiedEqualsCount++;
+                }
+            }
+            // 縦向きの＝ (26 または 46) -> 上下方向だけをチェック
+            else if (tile === 26 || tile === 46) {
+                totalEqualsCount++;
+                if (checkEquationAt(x, y, true)) {
+                    satisfiedEqualsCount++;
+                }
+            }
+        }
+    }
+
+    // マップ上のすべての「＝」ブロックの数式が成立していればステージクリア！
+    if (totalEqualsCount > 0 && satisfiedEqualsCount === totalEqualsCount) {
+        isStageCleared = true;
+    }
 }
 
 // 移動処理（アニメーションの開始トリガー）
 function movePlayer(dx, dy) {
-    if (map.length === 0 || player.isMoving) return;
+    if (map.length === 0 || player.isMoving || isStageCleared) return;
 
     const nextX = player.x + dx;
     const nextY = player.y + dy;
 
-    // プレイヤーの移動先がマップの範囲外なら何もしない
     if (nextY < 0 || nextY >= map.length || nextX < 0 || nextX >= map[nextY].length) {
         return;
     }
 
-    // 1. 移動先が床（0）の場合、そのまま前進
     if (map[nextY][nextX] === 0) {
+        saveToHistory();
         player.x = nextX;
         player.y = nextY;
         player.isMoving = true;
         return;
     }
 
-    // 2. 移動先が動くブロック（11〜25）の場合
     if (isMovableBlock(map[nextY][nextX])) {
         let checkX = nextX;
         let checkY = nextY;
         const blocksToMove = [];
 
-        // 進行方向に並んでいる「動くブロック」をすべてリストアップ
         while (
             checkY >= 0 && checkY < map.length &&
             checkX >= 0 && checkX < map[checkY].length &&
@@ -122,18 +289,16 @@ function movePlayer(dx, dy) {
             checkY += dy;
         }
 
-        // 連続した動くブロックの「さらにその先にあるマス」
         const finalX = checkX;
         const finalY = checkY;
 
-        // そのマスがマップ内であり、かつ「床（0）」であれば、すべて押し出せる
-        // (先が壁(1)や、動かないブロック(31〜45)だった場合は、条件を満たさないので動かない)
         if (
             finalY >= 0 && finalY < map.length &&
             finalX >= 0 && finalX < map[finalY].length &&
             map[finalY][finalX] === 0
         ) {
-            // 内部配列データを後ろから順に1マスずつ先にずらす
+            saveToHistory();
+
             for (let i = blocksToMove.length - 1; i >= 0; i--) {
                 const b = blocksToMove[i];
                 map[b.y + dy][b.x + dx] = b.value;
@@ -146,10 +311,8 @@ function movePlayer(dx, dy) {
                     ty: (b.y + dy) * TILE_SIZE
                 });
             }
-            // プレイヤーの目の前にあったブロックの場所を床（0）にする
             map[nextY][nextX] = 0;
 
-            // プレイヤーを移動状態にする
             player.x = nextX;
             player.y = nextY;
             player.isMoving = true;
@@ -183,28 +346,38 @@ function update() {
     }
 
     movingBlocks = movingBlocks.filter(b => b.px !== b.tx || b.py !== b.ty);
+
+    // プレイヤーとブロックのすべての動きが止まっているときにのみクリアチェック
+    if (!player.isMoving && movingBlocks.length === 0) {
+        checkAllClearConditions();
+    }
 }
 
 // ブロックの装飾と文字を描画する関数
 function drawBlock(style, px, py) {
-    // ベースとなるブロックの塗りつぶし
     ctx.fillStyle = style.color;
     ctx.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
-    // 動かないブロック（赤枠）の処理
     if (style.isImmovable) {
-        ctx.strokeStyle = "#ff4d4d"; // 赤い枠線
-        ctx.lineWidth = 3;           // 枠線の太さ
-        // 内側に綺麗な枠線を引くために、座標を1ピクセル内側にずらす
+        ctx.strokeStyle = "#ff4d4d";
+        ctx.lineWidth = 3;
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
     }
 
-    // 文字の描画
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(style.text, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+
+    if (style.isVerticalSign) {
+        ctx.save();
+        ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+        ctx.rotate((90 * Math.PI) / 180);
+        ctx.fillText(style.text, 0, 0);
+        ctx.restore();
+    } else {
+        ctx.fillText(style.text, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+    }
 }
 
 // 描画関数
@@ -215,18 +388,14 @@ function draw() {
     for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[y].length; x++) {
             if (map[y][x] === 1) {
-                // 壁（赤色）
                 ctx.fillStyle = "#ff4d4d";
                 ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
             } else {
-                // 床（暗いグレー）
                 ctx.fillStyle = "#333333";
                 ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE - 1, TILE_SIZE - 1);
                 
-                // 静止しているブロックの描画（動くもの、動かないもの両方）
                 const tileValue = map[y][x];
                 if (isMovableBlock(tileValue) || isImmovableBlock(tileValue)) {
-                    // アニメーション移動中のブロックはここでは描画しない
                     const isMoving = movingBlocks.some(b => Math.floor(b.tx / TILE_SIZE) === x && Math.floor(b.ty / TILE_SIZE) === y);
                     if (!isMoving) {
                         const style = getBlockStyle(tileValue);
@@ -246,6 +415,18 @@ function draw() {
     // プレイヤーの描画（緑色）
     ctx.fillStyle = "#4dff4d";
     ctx.fillRect(player.px, player.py, TILE_SIZE - 1, TILE_SIZE - 1);
+
+    // ステージクリア時のオーバーレイUI表示
+    if (isStageCleared) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#4dff4d";
+        ctx.font = "bold 32px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("STAGE CLEAR!", canvas.width / 2, canvas.height / 2);
+    }
 }
 
 // メインのゲームループ
@@ -261,7 +442,12 @@ window.addEventListener("keydown", function(event) {
         event.preventDefault();
     }
 
-    if (player.isMoving) return;
+    if (event.key === "z" || event.key === "Z") {
+        undo();
+        return;
+    }
+
+    if (player.isMoving || isStageCleared) return;
 
     switch(event.key) {
         case "ArrowUp":    movePlayer(0, -1); break;
@@ -284,13 +470,25 @@ btns.forEach(btn => {
     if (element) {
         element.addEventListener("touchstart", function(event) {
             event.preventDefault();
-            if (!player.isMoving) movePlayer(btn.dx, btn.dy);
+            if (!player.isMoving && !isStageCleared) movePlayer(btn.dx, btn.dy);
         });
         element.addEventListener("click", function(event) {
-            if (!player.isMoving) movePlayer(btn.dx, btn.dy);
+            if (!player.isMoving && !isStageCleared) movePlayer(btn.dx, btn.dy);
         });
     }
 });
+
+// 「戻る」ボタン（ID: btn-undo）の処理
+const undoBtn = document.getElementById("btn-undo");
+if (undoBtn) {
+    undoBtn.addEventListener("touchstart", function(event) {
+        event.preventDefault();
+        undo();
+    });
+    undoBtn.addEventListener("click", function(event) {
+        undo();
+    });
+}
 
 // 最初に map1.csv を読み込む
 loadMapCSV("./map/map1.csv");

@@ -27,7 +27,7 @@ const historyStack = [];
 // ステージクリアを管理するフラグ
 let isStageCleared = false;
 
-// 【新設】現在成立している数式に含まれるブロックの座標（"x,y" の文字列）を記録するセット
+// 現在成立している数式に含まれるブロックの座標（"x,y" の文字列）を記録するセット
 let satisfiedBlockCoords = new Set();
 
 // CSVファイルを読み込んで2次元配列に変換する関数
@@ -119,21 +119,37 @@ function isAnyBlock(tileValue) {
     return isMovableBlock(tileValue) || isImmovableBlock(tileValue);
 }
 
+// 指定した方向（縦か横か）の式構成パーツとして有効なブロックか判定する関数
+function isValidPartForDirection(tileValue, isVertical) {
+    if (!isAnyBlock(tileValue)) return false;
+
+    if (tileValue === 26 || tileValue === 46) {
+        return isVertical;
+    }
+    if (tileValue === 25 || tileValue === 45) {
+        return !isVertical;
+    }
+
+    return true;
+}
+
 // ブロックのタイプに応じた見た目と情報を取得する関数
 function getBlockStyle(tileValue) {
     if (tileValue >= 11 && tileValue <= 19) {
         return { color: "#3399ff", text: String(tileValue - 10), isImmovable: false, isVerticalSign: false };
     } 
+    // 記号ブロックの色を黄色から見やすい鮮やかな紫（#b77eff）に変更
     if (tileValue >= 21 && tileValue <= 28) {
         const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝", 26: "＝", 27: "（", 28: "）" };
-        return { color: "#ffcc00", text: signs[tileValue], isImmovable: false, isVerticalSign: (tileValue === 26) };
+        return { color: "#b77eff", text: signs[tileValue], isImmovable: false, isVerticalSign: (tileValue === 26) };
     } 
     if (tileValue >= 31 && tileValue <= 39) {
         return { color: "#3399ff", text: String(tileValue - 30), isImmovable: true, isVerticalSign: false };
     } 
+    // 固定記号ブロックの色も紫に変更
     if (tileValue >= 41 && tileValue <= 48) {
         const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝", 46: "＝", 47: "（", 48: "）" };
-        return { color: "#ffcc00", text: signs[tileValue], isImmovable: true, isVerticalSign: (tileValue === 46) };
+        return { color: "#b77eff", text: signs[tileValue], isImmovable: true, isVerticalSign: (tileValue === 46) };
     }
 
     return { color: "#333333", text: "", isImmovable: false, isVerticalSign: false };
@@ -167,7 +183,6 @@ function isValidEquation(formulaTokens) {
 
         if (leftVal === undefined || rightVal === undefined) return false;
 
-        // 浮動小数点誤差の丸め処理
         return Math.abs(leftVal - rightVal) < 0.00001;
     } catch (e) {
         return false;
@@ -180,28 +195,25 @@ function checkEquationAt(eqX, eqY, isVertical) {
     const dx = isVertical ? 0 : 1;
     const dy = isVertical ? 1 : 0;
 
-    // 1. 式の「開始地点（左端または上端）」を求めて逆方向に遡る
     let startX = eqX;
     let startY = eqY;
     while (true) {
         const prevX = startX - dx;
         const prevY = startY - dy;
         if (prevY < 0 || prevY >= map.length || prevX < 0 || prevX >= map[prevY].length) break;
-        if (!isAnyBlock(map[prevY][prevX])) break;
+        if (!isValidPartForDirection(map[prevY][prevX], isVertical)) break;
         startX = prevX;
         startY = prevY;
     }
 
-    // 一時的に数式ラインの座標を記録する配列
     const lineCoords = [];
 
-    // 2. 開始地点から正方向に進みながら、ブロックが連続する限り文字と座標を回収
     let currentX = startX;
     let currentY = startY;
     while (
         currentY >= 0 && currentY < map.length &&
         currentX >= 0 && currentX < map[currentY].length &&
-        isAnyBlock(map[currentY][currentX])
+        isValidPartForDirection(map[currentY][currentX], isVertical)
     ) {
         formulaTokens.push(parseTileToFormulaString(map[currentY][currentX]));
         lineCoords.push(`${currentX},${currentY}`);
@@ -209,10 +221,8 @@ function checkEquationAt(eqX, eqY, isVertical) {
         currentY += dy;
     }
 
-    // 3. 正しい等式か判定
     const isSuccess = isValidEquation(formulaTokens);
     
-    // 式が成立しているなら、そのライン上にあるブロックの座標を光らせる対象として登録
     if (isSuccess) {
         lineCoords.forEach(coord => satisfiedBlockCoords.add(coord));
     }
@@ -224,7 +234,6 @@ function checkEquationAt(eqX, eqY, isVertical) {
 function checkAllClearConditions() {
     if (map.length === 0 || isStageCleared) return;
 
-    // 毎スキャン時に一度発光座標リストをリセット
     satisfiedBlockCoords.clear();
 
     let totalEqualsCount = 0;
@@ -351,30 +360,28 @@ function update() {
     }
 }
 
-// 【機能拡張】ブロックの装飾と文字を描画し、成立時はネオンのように発光させる関数
+// ブロックの装飾と文字を描画し、成立時はネオンのように発光させる関数
 function drawBlock(style, px, py, isSatisfied) {
     ctx.fillStyle = style.color;
     ctx.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
-    // 固定ブロックの赤枠
     if (style.isImmovable) {
         ctx.strokeStyle = "#ff4d4d";
         ctx.lineWidth = 3;
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
     }
 
-    // 式が成立している場合、黄緑色（#4dff4d）の強力な発光枠線を重ねて描画する
     if (isSatisfied) {
         ctx.save();
         ctx.strokeStyle = "#4dff4d";
         ctx.lineWidth = 3;
-        // ネオンのようなグロー効果（ぼかし）をブラウザの標準機能で付与
         ctx.shadowColor = "#4dff4d";
         ctx.shadowBlur = 8;
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
         ctx.restore();
     }
 
+    // 紫背景に白文字の視認性をさらに上げるため、テキストカラーの設定を調整
     ctx.fillStyle = style.textColor || "#ffffff";
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
@@ -410,7 +417,6 @@ function draw() {
                     const isMoving = movingBlocks.some(b => Math.floor(b.tx / TILE_SIZE) === x && Math.floor(b.ty / TILE_SIZE) === y);
                     if (!isMoving) {
                         const style = getBlockStyle(tileValue);
-                        // 現在の座標が成立中の数式リストに含まれるか確認して引き渡す
                         const isSatisfied = satisfiedBlockCoords.has(`${x},${y}`);
                         drawBlock(style, x * TILE_SIZE, y * TILE_SIZE, isSatisfied);
                     }
@@ -432,7 +438,6 @@ function draw() {
     ctx.fillStyle = "#4dff4d";
     ctx.fillRect(player.px, player.py, TILE_SIZE - 1, TILE_SIZE - 1);
 
-    // 全画面オーバーレイを排した、ステージクリア時のシンプルなテキスト直接描画
     if (isStageCleared) {
         ctx.fillStyle = "#4dff4d";
         ctx.font = "bold 32px sans-serif";
@@ -495,7 +500,6 @@ btns.forEach(btn => {
     }
 });
 
-// 「戻る」ボタン（ID: btn-undo）の処理
 const undoBtn = document.getElementById("btn-undo");
 if (undoBtn) {
     undoBtn.addEventListener("touchstart", function(event) {
@@ -507,5 +511,4 @@ if (undoBtn) {
     });
 }
 
-// 最初に map1.csv を読み込む
 loadMapCSV("./map/map1.csv");

@@ -43,15 +43,11 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* 遊び方アコーディオン */
+        /* 【修正】独立したルール表示のトグルボタン */
         .how-to-play-container {
             width: 100%;
             max-width: 480px;
             margin-bottom: 8px;
-            background-color: #151922;
-            border: 1px solid #2d3748;
-            border-radius: 10px;
-            overflow: hidden;
             z-index: 10;
         }
 
@@ -63,7 +59,8 @@
             font-size: 12px;
             font-weight: bold;
             text-align: left;
-            border: none;
+            border: 1px solid #2d3748;
+            border-radius: 10px;
             outline: none;
             cursor: pointer;
             display: flex;
@@ -76,37 +73,99 @@
             background-color: #232d3f;
         }
 
-        .accordion-icon {
-            font-size: 10px;
-            transition: transform 0.2s ease;
-            color: #ff3366;
+        /* 【新設】ゲームやUIに一切作用しない、最前面の独立ポップアップ（モーダル背景） */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75); /* 背後を暗く暗転 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* 最前面に配置 */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
         }
 
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.25s ease-out;
+        /* モーダルが開いているときの表示状態 */
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ポップアップの白い内側ウィンドウ */
+        .modal-window {
             background-color: #151922;
-            font-size: 11px;
-            line-height: 1.5;
+            border: 2px solid #2d3748;
+            border-radius: 14px;
+            width: 90%;
+            max-width: 420px;
+            max-height: 80vh; /* 画面の8割を超えない高さ */
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            transform: scale(0.9);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.open .modal-window {
+            transform: scale(1);
+        }
+
+        /* ポップアップのヘッダータイトル部分 */
+        .modal-header {
+            padding: 12px 16px;
+            background-color: #1a202c;
+            border-bottom: 1px solid #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+
+        .modal-title {
+            color: #33ccff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* ポップアップを閉じる「×」ボタン */
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: #ff3366;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        /* ポップアップ内のルール本文エリア（ここだけを独立して内部スクロール可能にします） */
+        .modal-body {
+            padding: 16px;
+            font-size: 12px;
+            line-height: 1.6;
             color: #cbd5e1;
+            overflow-y: auto; /* 長文になってもこの中だけでスクロールできる */
+            -webkit-overflow-scrolling: touch;
         }
 
-        .accordion-body {
-            padding: 10px 14px;
+        .modal-body p {
+            margin-bottom: 10px;
         }
 
-        .accordion-body p {
-            margin-bottom: 8px;
+        .modal-body ul {
+            margin-left: 18px;
+            margin-bottom: 10px;
         }
 
-        .accordion-body ul {
-            margin-left: 16px;
-            margin-bottom: 8px;
-        }
-
-        .accordion-body li {
-            margin-bottom: 4px;
+        .modal-body li {
+            margin-bottom: 6px;
         }
 
         /* 明確でカラフルな強調色定義 */
@@ -131,13 +190,7 @@
             font-weight: bold;
         }
 
-        /* アコーディオンが開いているときのスタイル */
-        .how-to-play-container.open .accordion-icon {
-            transform: rotate(180deg);
-        }
-
-        /* 【重要修正】ゲーム画面全体を包むタグ（コンテナ）のスタイル調整 */
-        /* 下の要素の右寄せに影響されないよう、明示的に中央揃え（margin: 0 auto）を確定させます */
+        /* ゲーム画面（Canvas）のラップ容器 */
         #game-container {
             width: auto;
             max-width: 100%;
@@ -150,7 +203,7 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-            margin: 0 auto 4px auto; /* 左右中央寄せを強制 */
+            margin: 0 auto 4px auto;
         }
 
         canvas {
@@ -217,8 +270,7 @@
             color: #a0aec0;
         }
 
-        /* 【重要修正】十字キー（バーチャルパッド）の配置 */
-        /* justify-content: flex-end を排し、margin-left: auto で自身の枠線内だけで右寄せを行います */
+        /* 十字キー（バーチャルパッド）の配置 */
         .dpad-container {
             display: grid;
             grid-template-areas: 
@@ -228,7 +280,7 @@
             grid-template-columns: repeat(3, 44px);
             grid-template-rows: repeat(3, 44px);
             gap: 4px;
-            margin-left: auto; /* 安全に右端へ寄せる */
+            margin-left: auto;
             margin-right: 4px;
         }
 
@@ -265,13 +317,20 @@
         <h1>MATH PUZZLE QUEST</h1>
     </header>
 
-    <div class="how-to-play-container" id="how-to-play">
-        <button class="accordion-header" id="accordion-toggle">
+    <div class="how-to-play-container">
+        <button class="accordion-header" id="modal-open-trigger">
             <span>🎮 遊び方とルールを表示</span>
-            <span class="accordion-icon">▼</span>
+            <span style="color: #ff3366; font-size: 11px;">▶</span>
         </button>
-        <div class="accordion-content" id="accordion-content">
-            <div class="accordion-body">
+    </div>
+
+    <div class="modal-overlay" id="rules-modal">
+        <div class="modal-window">
+            <div class="modal-header">
+                <span class="modal-title">🎮 遊び方とルール</span>
+                <button class="modal-close-btn" id="modal-close-trigger">×</button>
+            </div>
+            <div class="modal-body">
                 <p>緑のプレイヤーを動かしてブロックを押し、正しい等式を組み立てるパズルゲームです。</p>
                 <p><span class="color-title">■ クリア条件</span><br>「＝」を挟んだ左辺と右辺の計算結果が一致すると、その数式全体が<span class="color-clear-glow">黄緑色の大きな一本の枠線で発光</span>します。全ての数式が成立すればステージクリアです。</p>
                 <p><span class="color-sub">■ ブロックのルールと色の見方</span></p>
@@ -313,26 +372,43 @@
     <script src="main.js"></script>
 
     <script>
-        const container = document.getElementById('how-to-play');
-        const toggleBtn = document.getElementById('accordion-toggle');
-        const content = document.getElementById('accordion-content');
+        const modal = document.getElementById('rules-modal');
+        const openBtn = document.getElementById('modal-open-trigger');
+        const closeBtn = document.getElementById('modal-close-trigger');
 
-        toggleBtn.addEventListener('click', () => {
-            const isOpen = container.classList.toggle('open');
-            if (isOpen) {
-                content.style.maxHeight = content.scrollHeight + "px";
-            } else {
-                content.style.maxHeight = "0";
+        // 開く処理
+        openBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            modal.classList.add('open');
+        });
+
+        // 閉じる処理 (×ボタンをクリック)
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            modal.classList.remove('open');
+            window.scrollTo(0, 0);
+        });
+
+        // 閉じる処理 (ウインドウの外側の暗い背景エリアをクリック)
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('open');
+                window.scrollTo(0, 0);
             }
         });
 
         // 放置対策：画面内のどこかを触ったとき、自動で強制的に画面スクロール位置を最上部に引き戻す
         document.addEventListener('touchstart', () => {
-            window.scrollTo(0, 0);
+            // モーダルが開いている間は引き戻しによるスクロール干渉を防ぐため除外
+            if (!modal.classList.contains('open')) {
+                window.scrollTo(0, 0);
+            }
         }, { passive: true });
         
         document.addEventListener('touchend', () => {
-            window.scrollTo(0, 0);
+            if (!modal.classList.contains('open')) {
+                window.scrollTo(0, 0);
+            }
         }, { passive: true });
     </script>
 </body>

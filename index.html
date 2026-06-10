@@ -5,13 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Math Puzzle Quest</title>
     <style>
+        /* すべての要素で、余白が外側にはみ出さない設定を強制適用 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
         /* ブラウザ自体のスクロールやバウンス挙動を完全に禁止する設定 */
         html, body {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            position: fixed; /* 画面全体を固定してスクロールの発生を防ぐ */
-            overscroll-behavior: none; /* スマホ特有の引っ張りバウンスを禁止 */
+            position: fixed;
+            overscroll-behavior: none;
             background-color: #0f1115;
             color: #e2e8f0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -22,15 +31,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            padding: 10px;
+            padding: 10px 0; /* 左右のボディパディングを0にして計算を狂わせない */
         }
 
         /* ヘッダーエリア */
         header {
             text-align: center;
             margin-bottom: 8px;
-            width: 100%;
-            max-width: 480px;
+            width: calc(100vw - 20px); /* 画面幅から確実に左右10pxずつの猶予を持たせる */
+            max-width: 440px;
         }
 
         header h1 {
@@ -43,10 +52,10 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* 【修正】独立したルール表示のトグルボタン */
+        /* 遊び方説明のコンテナボタン */
         .how-to-play-container {
-            width: 100%;
-            max-width: 480px;
+            width: calc(100vw - 20px);
+            max-width: 440px;
             margin-bottom: 8px;
             z-index: 10;
         }
@@ -66,44 +75,37 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: background-color 0.2s ease;
         }
 
-        .accordion-header:hover {
-            background-color: #232d3f;
-        }
-
-        /* 【新設】ゲームやUIに一切作用しない、最前面の独立ポップアップ（モーダル背景） */
+        /* 独立した最前面のルール表示ポップアップ（モーダル背景） */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.75); /* 背後を暗く暗転 */
+            background-color: rgba(0, 0, 0, 0.75);
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000; /* 最前面に配置 */
+            z-index: 1000;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s ease;
         }
 
-        /* モーダルが開いているときの表示状態 */
         .modal-overlay.open {
             opacity: 1;
             pointer-events: auto;
         }
 
-        /* ポップアップの白い内側ウィンドウ */
         .modal-window {
             background-color: #151922;
             border: 2px solid #2d3748;
             border-radius: 14px;
             width: 90%;
-            max-width: 420px;
-            max-height: 80vh; /* 画面の8割を超えない高さ */
+            max-width: 400px;
+            max-height: 80vh;
             display: flex;
             flex-direction: column;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
@@ -115,7 +117,6 @@
             transform: scale(1);
         }
 
-        /* ポップアップのヘッダータイトル部分 */
         .modal-header {
             padding: 12px 16px;
             background-color: #1a202c;
@@ -133,7 +134,6 @@
             font-weight: bold;
         }
 
-        /* ポップアップを閉じる「×」ボタン */
         .modal-close-btn {
             background: none;
             border: none;
@@ -145,13 +145,12 @@
             line-height: 1;
         }
 
-        /* ポップアップ内のルール本文エリア（ここだけを独立して内部スクロール可能にします） */
         .modal-body {
             padding: 16px;
             font-size: 12px;
             line-height: 1.6;
             color: #cbd5e1;
-            overflow-y: auto; /* 長文になってもこの中だけでスクロールできる */
+            overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
 
@@ -168,7 +167,7 @@
             margin-bottom: 6px;
         }
 
-        /* 明確でカラフルな強調色定義 */
+        /* カラフルな強調色定義 */
         .color-title {
             color: #ff3366;
             font-weight: bold;
@@ -192,9 +191,7 @@
 
         /* ゲーム画面（Canvas）のラップ容器 */
         #game-container {
-            width: auto;
-            max-width: 100%;
-            box-sizing: border-box;
+            max-width: calc(100vw - 20px);
             background-color: #000000;
             border: 2px solid #2d3748;
             border-radius: 12px;
@@ -211,14 +208,15 @@
             max-width: 100%;
         }
 
-        /* バージョン情報表示用のスタイル */
+        /* 【修正】バージョン情報表示用のスタイル */
+        /* 右端が見切れないよう、横幅を厳格に固定し右側パディングで完全にガードします */
         #version-display {
-            width: 100%;
-            max-width: 480px;
+            width: calc(100vw - 20px);
+            max-width: 440px;
             text-align: right;
             font-size: 10px;
             color: #4a5568;
-            padding-right: 14px;
+            padding-right: 8px; /* 右端に確実なマージンを設置 */
             margin-bottom: 8px;
             font-family: monospace;
             letter-spacing: 0.05em;
@@ -226,14 +224,13 @@
 
         /* 操作UIエリア */
         #ui-container {
-            width: 100%;
-            max-width: 480px;
+            width: calc(100vw - 20px);
+            max-width: 440px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
-            padding: 5px 10px;
-            box-sizing: border-box;
+            padding: 4px 0;
         }
 
         /* 1手戻す（UNDO）ボタンの配置 */
@@ -247,7 +244,7 @@
             background-color: #1a202c;
             color: #ff9933;
             border: 1px solid #4a5568;
-            padding: 12px 18px;
+            padding: 12px 16px;
             border-radius: 12px;
             font-size: 12px;
             font-weight: bold;
@@ -257,7 +254,6 @@
             align-items: center;
             gap: 4px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: all 0.1s ease;
         }
 
         .undo-btn:active {
@@ -281,7 +277,7 @@
             grid-template-rows: repeat(3, 44px);
             gap: 4px;
             margin-left: auto;
-            margin-right: 4px;
+            padding-right: 2px;
         }
 
         .pad-btn {
@@ -296,7 +292,6 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: all 0.1s ease;
         }
 
         .pad-btn:active {
@@ -376,20 +371,17 @@
         const openBtn = document.getElementById('modal-open-trigger');
         const closeBtn = document.getElementById('modal-close-trigger');
 
-        // 開く処理
         openBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             modal.classList.add('open');
         });
 
-        // 閉じる処理 (×ボタンをクリック)
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             modal.classList.remove('open');
             window.scrollTo(0, 0);
         });
 
-        // 閉じる処理 (ウインドウの外側の暗い背景エリアをクリック)
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.classList.remove('open');
@@ -397,9 +389,7 @@
             }
         });
 
-        // 放置対策：画面内のどこかを触ったとき、自動で強制的に画面スクロール位置を最上部に引き戻す
         document.addEventListener('touchstart', () => {
-            // モーダルが開いている間は引き戻しによるスクロール干渉を防ぐため除外
             if (!modal.classList.contains('open')) {
                 window.scrollTo(0, 0);
             }

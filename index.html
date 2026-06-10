@@ -2,47 +2,295 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Puzzle Quest</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 全体の基本デザイン設定 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #0f1115;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 15px 10px;
+            overflow-x: hidden;
+        }
+
+        /* ヘッダーエリア */
+        header {
+            text-align: center;
+            margin-bottom: 12px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            background: linear-gradient(45deg, #4dff4d, #3399ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 【新設】スマホ版でも邪魔にならない遊び方アコーディオン */
+        .how-to-play-container {
+            width: 100%;
+            max-width: 480px;
+            margin-bottom: 12px;
+            background-color: #151922;
+            border: 1px solid #2d3748;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            width: 100%;
+            padding: 10px 14px;
+            background-color: #1a202c;
+            color: #4dff4d;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background-color: #232d3f;
+        }
+
+        .accordion-icon {
+            font-size: 11px;
+            transition: transform 0.2s ease;
+            color: #a0aec0;
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.25s ease-out;
+            background-color: #151922;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+
+        .accordion-body {
+            padding: 12px 14px;
+        }
+
+        .accordion-body p {
+            margin-bottom: 8px;
+        }
+
+        .accordion-body ul {
+            margin-left: 18px;
+            margin-bottom: 8px;
+        }
+
+        .accordion-body li {
+            margin-bottom: 4px;
+        }
+
+        .highlight-text {
+            color: #ffcc00;
+            font-weight: bold;
+        }
+
+        /* アコーディオンが開いているときのスタイル */
+        .how-to-play-container.open .accordion-icon {
+            transform: rotate(180deg);
+        }
+
+        /* ゲーム画面（Canvas）のラップ容器 */
+        #game-container {
+            width: 100%;
+            max-width: 480px;
+            background-color: #000000;
+            border: 2px solid #2d3748;
+            border-radius: 12px;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            margin-bottom: 12px;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* 操作UIエリア */
+        #ui-container {
+            width: 100%;
+            max-width: 480px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            align-items: center;
+            padding: 5px 10px;
+        }
+
+        /* 1手戻す（UNDO）ボタンの配置 */
+        .undo-wrapper {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .undo-btn {
+            background-color: #1a202c;
+            color: #ffcc00;
+            border: 1px solid #4a5568;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.1s ease;
+        }
+
+        .undo-btn:active {
+            transform: scale(0.95);
+            background-color: #2d3748;
+        }
+
+        .undo-btn span {
+            font-size: 10px;
+            color: #a0aec0;
+        }
+
+        /* 十字キー（バーチャルパッド）の配置 */
+        .dpad-container {
+            display: grid;
+            grid-template-areas: 
+                ".    up    ."
+                "left  .    right"
+                ".    down  .";
+            grid-template-columns: repeat(3, 46px);
+            grid-template-rows: repeat(3, 46px);
+            gap: 4px;
+            justify-content: flex-end;
+            margin-right: 10px;
+        }
+
+        .pad-btn {
+            background-color: #1a202c;
+            color: #ffffff;
+            border: 1px solid #4a5568;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.1s ease;
+        }
+
+        .pad-btn:active {
+            transform: scale(0.92);
+            background-color: #2d3748;
+            border-color: #718096;
+        }
+
+        #btn-up    { grid-area: up; }
+        #btn-down  { grid-area: down; }
+        #btn-left  { grid-area: left; }
+        #btn-right { grid-area: right; }
+    </style>
 </head>
 <body>
 
-    <div id="app-container">
-        <header id="game-header">
-            <h1>MATH PUZZLE QUEST</h1>
-            <div class="subtitle">数字と記号のブロックパズル</div>
-        </header>
+    <header>
+        <h1>MATH PUZZLE QUEST</h1>
+    </header>
 
-        <main id="stage-area">
-            <canvas id="gameCanvas"></canvas>
-        </main>
-
-        <div id="info-bar">
-            <span class="desktop-tip">PC: 矢印キーで移動 / Zキーで戻る</span>
-            <span class="mobile-tip">黄色ブロックは移動可能 / 赤枠は固定</span>
+    <div class="how-to-play-container" id="how-to-play">
+        <button class="accordion-header" id="accordion-toggle">
+            <span>遊び方とルールを表示</span>
+            <span class="accordion-icon">▼</span>
+        </button>
+        <div class="accordion-content" id="accordion-content">
+            <div class="accordion-body">
+                <p>数字と記号のブロックを押し動かし、正しい等式を作るパズルゲームです。</p>
+                <p><span class="highlight-text">■ クリア条件</span><br>全ての「＝」を挟んだ左辺と右辺の計算結果が一致すると数式が<span class="highlight-text">黄緑色に発光</span>し、全面達成でステージクリアとなります。</p>
+                <p><span class="highlight-text">■ ブロックのルール</span></p>
+                <ul>
+                    <li><span class="highlight-text">青/黄ブロック:</span> 後ろから押して自由に移動可能（連続押しも可）。</li>
+                    <li><span class="highlight-text">赤枠付きブロック:</span> 固定されていて絶対に動きません。</li>
+                    <li><span class="highlight-text">（ ）ブロック:</span> 掛け算・割り算より優先して計算させたい式を挟み込みます。</li>
+                </ul>
+                <p>※PC版は矢印キーで移動、<span class="highlight-text">Zキー</span>で1手戻せます。</p>
+            </div>
         </div>
-
-        <footer id="input-area">
-            <div class="system-controls">
-                <button id="btn-undo" class="sys-btn">
-                    <span class="icon">↩</span>
-                    <span class="label">1手戻す</span>
-                </button>
-            </div>
-
-            <div id="controller">
-                <button id="btn-up" class="ctrl-btn up">↑</button>
-                <div class="middle-row">
-                    <button id="btn-left" class="ctrl-btn left">←</button>
-                    <div class="spacer"></div>
-                    <button id="btn-right" class="ctrl-btn right">→</button>
-                </div>
-                <button id="btn-down" class="ctrl-btn down">↓</button>
-            </div>
-        </footer>
     </div>
 
-    <script type="module" src="main.js"></script>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="ui-container">
+        <div class="undo-wrapper">
+            <button id="btn-undo" class="undo-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7v6h6"></path>
+                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                </svg>
+                1手戻す
+                <span>(Zキー)</span>
+            </button>
+        </div>
+        <div class="dpad-container">
+            <button id="btn-up" class="pad-btn">↑</button>
+            <button id="btn-left" class="pad-btn">←</button>
+            <button id="btn-right" class="pad-btn">→</button>
+            <button id="btn-down" class="pad-btn">↓</button>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+
+    <script>
+        const container = document.getElementById('how-to-play');
+        const toggleBtn = document.getElementById('accordion-toggle');
+        const content = document.getElementById('accordion-content');
+
+        toggleBtn.addEventListener('click', () => {
+            const isOpen = container.classList.toggle('open');
+            if (isOpen) {
+                // 内容の実際の高さに合わせて滑らかに広げる
+                content.style.maxHeight = content.scrollHeight + "px";
+            } else {
+                // 閉じる
+                content.style.maxHeight = "0";
+            }
+        });
+    </script>
 </body>
 </html>

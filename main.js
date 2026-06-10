@@ -1,11 +1,20 @@
+// 【新設】ゲーム全体のバージョン管理定数
+// 今後プログラムを変更した際は、この数値を「1.1.1」「1.2.0」のように上げていきます。
+const GAME_VERSION = "ver 1.1.0";
+
+// 画面にバージョン情報を即座に反映
+const versionElement = document.getElementById("version-display");
+if (versionElement) {
+    versionElement.innerText = GAME_VERSION;
+}
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// 【修正】固定値から、動的に変化する変数（let）に変更
-// 初期値として32を設定していますが、CSV読み込み時に自動で逆算・上書きされます
+// 固定値から、動的に変化する変数（let）に変更
 let TILE_SIZE = 32;
 
-// アニメーションの移動速度（タイルの大きさに応じて後ほど内部調整されます）
+// アニメーションの移動速度
 let MOVE_SPEED = 4;
 
 // マップデータを保持する配列
@@ -61,8 +70,7 @@ async function loadMapCSV(url) {
             }
         }
 
-        // 【新設・復元】マップサイズ（横の最大マス数）に応じてタイルの大きさを動的に計算
-        // index.html側の最大コンテナ幅である 480px を基準としてマス目の幅を逆算します
+        // マップサイズ（横の最大マス数）に応じてタイルの大きさを動的に計算
         const maxDisplayWidth = 480;
         
         // マップが極端に小さい場合でも大きくなりすぎないよう、最大値を48pxに制限
@@ -377,7 +385,7 @@ function drawBlock(style, px, py, isSatisfied) {
 
     if (style.isImmovable) {
         ctx.strokeStyle = "#ff4d4d";
-        ctx.lineWidth = Math.max(2, TILE_SIZE / 10); // タイルサイズに合わせて枠線の太さも微調整
+        ctx.lineWidth = Math.max(2, TILE_SIZE / 10);
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
     }
 
@@ -386,14 +394,13 @@ function drawBlock(style, px, py, isSatisfied) {
         ctx.strokeStyle = "#4dff4d";
         ctx.lineWidth = Math.max(2, TILE_SIZE / 10);
         ctx.shadowColor = "#4dff4d";
-        ctx.shadowBlur = TILE_SIZE / 4; // 発光のぼかし幅もマスの大きさに同期
+        ctx.shadowBlur = TILE_SIZE / 4;
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
         ctx.restore();
     }
 
     ctx.fillStyle = style.textColor || "#ffffff";
     
-    // 【調整】タイルの大きさに応じて、フォントサイズ（文字の大きさ）も動的にスケール
     const fontSize = Math.floor(TILE_SIZE * 0.5);
     ctx.font = `bold ${fontSize}px sans-serif`;
     

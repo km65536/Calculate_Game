@@ -110,25 +110,25 @@
             margin-bottom: 6px;
         }
 
-        /* カラフルな強調色定義 */
-        .color-pink {
+        /* 明確でカラフルな強調色定義 */
+        .color-title {
             color: #ff3366;
             font-weight: bold;
         }
-        .color-orange {
+        .color-sub {
             color: #ff9933;
             font-weight: bold;
         }
-        .color-blue {
-            color: #33ccff;
+        .color-number-block {
+            color: #3399ff;
             font-weight: bold;
         }
-        .color-green {
+        .color-sign-block {
+            color: #b77eff;
+            font-weight: bold;
+        }
+        .color-clear-glow {
             color: #22ff88;
-            font-weight: bold;
-        }
-        .color-purple {
-            color: #cc66ff;
             font-weight: bold;
         }
 
@@ -137,11 +137,8 @@
             transform: rotate(180deg);
         }
 
-        /* 【修正】ゲーム画面（Canvas）のラップ容器 */
-        /* max-width: 100% を追加し、幅狭スマホ画面からはみ出すのを防止 */
+        /* ゲーム画面（Canvas）のラップ容器 */
         #game-container {
-            width: 100%;
-            max-width: 480px;
             background-color: #000000;
             border: 2px solid #2d3748;
             border-radius: 12px;
@@ -269,15 +266,15 @@
         </button>
         <div class="accordion-content" id="accordion-content">
             <div class="accordion-body">
-                <p>数字と記号のブロックを押し動かし、正しい等式を作るパズルゲームです。</p>
-                <p><span class="color-pink">■ クリア条件</span><br>全ての「＝」を挟んだ左辺と右辺の計算結果が一致すると数式が<span class="color-green">黄緑色にネオン発光</span>し、全面達成でステージクリアとなります。</p>
-                <p><span class="color-blue">■ ブロックのルール</span></p>
+                <p>緑のプレイヤーを動かしてブロックを押し、正しい等式を組み立てるパズルゲームです。</p>
+                <p><span class="color-title">■ クリア条件</span><br>「＝」を挟んだ左辺と右辺の計算結果が一致すると、その数式全体が<span class="color-clear-glow">黄緑色の大きな一本の枠線で発光</span>します。全ての数式が成立すればステージクリアです。</p>
+                <p><span class="color-sub">■ ブロックのルールと色の見方</span></p>
                 <ul>
-                    <li><span class="color-cyan" style="color: #33ccff; font-weight: bold;">青 / 紫ブロック:</span> 後ろから押して自由に移動可能（連続押しも可）。</li>
-                    <li><span class="color-pink">赤枠付きブロック:</span> ガチガチに固定されていて絶対に動きません。</li>
-                    <li><span class="color-purple">（ ）ブロック:</span> 掛け算や割り算より先に計算させたい式を挟み込みます。</li>
+                    <li><span class="color-number-block">数字ブロック（青色）:</span> 1〜9の数字が書かれた、移動可能なブロック。</li>
+                    <li><span class="color-sign-block">記号ブロック（紫色）:</span> ＋、－、×、÷、＝などの移動可能な演算ブロック。</li>
+                    <li><span class="color-title">赤枠付きブロック:</span> 数字・記号問わずガチガチに固定されており、絶対に動きません。</li>
                 </ul>
-                <p>※PC版は矢印キーで移動、<span class="color-orange">Zキー</span>で1手戻せます。</p>
+                <p>※後ろから押して自由に移動できます（連続押しも可能）。PC版は矢印キーで移動、<span class="color-sub">Zキー</span>で1手戻せます。</p>
             </div>
         </div>
     </div>

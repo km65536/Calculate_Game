@@ -1,5 +1,5 @@
-// 【バージョン更新】縦横比自動ジャストフィット修正 ver 1.1.4
-const GAME_VERSION = "ver 1.1.4";
+// 【バージョン更新】放置時のはみ出し・ズレ防止引き戻し対策完了 ver 1.1.5
+const GAME_VERSION = "ver 1.1.5";
 
 const versionElement = document.getElementById("version-display");
 if (versionElement) {
@@ -53,38 +53,28 @@ async function loadMapCSV(url) {
             }
         }
 
-        // --- 【修正】画面の縦横比を両方考慮した完全フィット計算 ---
-        
-        // 1. 利用可能な「最大の横幅」を計算 (最大480px、画面が狭ければ端末幅マイナス余白)
+        // 画面の縦横比を考慮した安全マージンの再計算
         const windowWidth = window.innerWidth;
         const availableWidth = Math.min(480, windowWidth) - 24;
 
-        // 2. 利用可能な「最大の縦幅」を計算
-        // 端末全体の高さ(window.innerHeight)から、ヘッダー、遊び方、操作パッドの高さ(計約280px分)を差し引く
+        // パッドの押しつぶれを防ぎ、完全に画面に収めるために高さをやや厳しめ(計300px)に設定
         const windowHeight = window.innerHeight;
-        const availableHeight = windowHeight - 280;
+        const availableHeight = windowHeight - 300;
 
-        // 3. 横基準で算出した場合のタイルサイズ、縦基準で算出した場合のタイルサイズをそれぞれ計算
         const sizeBasedOnWidth = Math.floor(availableWidth / mapCols);
         const sizeBasedOnHeight = Math.floor(availableHeight / mapRows);
 
-        // 4. 両方の基準のうち「より小さく収まる方」を採用することで、縦にも横にも絶対に見切れないサイズを決定
         TILE_SIZE = Math.min(48, sizeBasedOnWidth, sizeBasedOnHeight);
-        
-        // 最低でもタイルサイズが小さくなりすぎないようセーフティ（最低16px）を設置
         if (TILE_SIZE < 16) TILE_SIZE = 16;
         
-        // 移動速度を再計算
         MOVE_SPEED = Math.max(2, TILE_SIZE / 8);
 
-        // 割り出された完璧なサイズでCanvasをリサイズ
         canvas.width = mapCols * TILE_SIZE;
         canvas.height = mapRows * TILE_SIZE;
 
-        // 親コンテナ（#game-container）のサイズもCanvasの大きさに100%ジャスト同期させる
         const gameContainer = document.getElementById("game-container");
         if (gameContainer) {
-            gameContainer.style.width = `${canvas.width + 4}px`; // 枠線分の+4px
+            gameContainer.style.width = `${canvas.width + 4}px`;
             gameContainer.style.height = `${canvas.height + 4}px`;
         }
 
@@ -94,6 +84,9 @@ async function loadMapCSV(url) {
         historyStack.length = 0;
         isStageCleared = false;
         satisfiedLineRects = [];
+
+        // 読み込み直後に一度強制スクロールリセット
+        window.scrollTo(0, 0);
 
         gameLoop();
     } catch (error) {
@@ -335,7 +328,6 @@ function movePlayer(dx, dy) {
     }
 }
 
-// アニメーション計算
 function update() {
     if (player.isMoving) {
         const targetPx = player.x * TILE_SIZE;

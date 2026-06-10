@@ -27,6 +27,9 @@ const historyStack = [];
 // ステージクリアを管理するフラグ
 let isStageCleared = false;
 
+// 【新設】現在成立している数式に含まれるブロックの座標（"x,y" の文字列）を記録するセット
+let satisfiedBlockCoords = new Set();
+
 // CSVファイルを読み込んで2次元配列に変換する関数
 async function loadMapCSV(url) {
     try {
@@ -67,6 +70,7 @@ async function loadMapCSV(url) {
         // 各種状態の初期化
         historyStack.length = 0;
         isStageCleared = false;
+        satisfiedBlockCoords.clear();
 
         // ゲームループを開始
         gameLoop();
@@ -117,33 +121,22 @@ function isAnyBlock(tileValue) {
 
 // ブロックのタイプに応じた見た目と情報を取得する関数
 function getBlockStyle(tileValue) {
-    let color = "#333333";
-    let text = "";
-    let isImmovable = false;
-    let isVerticalSign = false;
-
     if (tileValue >= 11 && tileValue <= 19) {
-        color = "#3399ff";
-        text = String(tileValue - 10);
-    } else if (tileValue >= 21 && tileValue <= 28) {
-        color = "#ffcc00";
+        return { color: "#3399ff", text: String(tileValue - 10), isImmovable: false, isVerticalSign: false };
+    } 
+    if (tileValue >= 21 && tileValue <= 28) {
         const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝", 26: "＝", 27: "（", 28: "）" };
-        text = signs[tileValue];
-        if (tileValue === 26) isVerticalSign = true;
-    } else if (tileValue >= 31 && tileValue <= 39) {
-        color = "#3399ff";
-        text = String(tileValue - 30);
-        isImmovable = true;
-    } else if (tileValue >= 41 && tileValue <= 48) {
-        // エラーの原因になっていた不要な2行（textColor, border）を完全に除去しました
-        color = "#ffcc00";
+        return { color: "#ffcc00", text: signs[tileValue], isImmovable: false, isVerticalSign: (tileValue === 26) };
+    } 
+    if (tileValue >= 31 && tileValue <= 39) {
+        return { color: "#3399ff", text: String(tileValue - 30), isImmovable: true, isVerticalSign: false };
+    } 
+    if (tileValue >= 41 && tileValue <= 48) {
         const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝", 46: "＝", 47: "（", 48: "）" };
-        text = signs[tileValue];
-        isImmovable = true;
-        if (tileValue === 46) isVerticalSign = true;
+        return { color: "#ffcc00", text: signs[tileValue], isImmovable: true, isVerticalSign: (tileValue === 46) };
     }
 
-    return { color, text, isImmovable, isVerticalSign };
+    return { color: "#333333", text: "", isImmovable: false, isVerticalSign: false };
 }
 
 // マスの中身を eval() で計算できる文字列用のパーツ（トークン）に変換する関数
@@ -181,12 +174,13 @@ function isValidEquation(formulaTokens) {
     }
 }
 
-// 特定の「＝」から繋がる式を、指定された方向（縦か横か）だけで抽出して判定する関数
+// 特定の「＝」から繋がる式を、指定された方向（縦か横か）だけで抽出し、成否を判定する関数
 function checkEquationAt(eqX, eqY, isVertical) {
     const formulaTokens = [];
     const dx = isVertical ? 0 : 1;
     const dy = isVertical ? 1 : 0;
 
+    // 1. 式の「開始地点（左端または上端）」を求めて逆方向に遡る
     let startX = eqX;
     let startY = eqY;
     while (true) {
@@ -198,6 +192,10 @@ function checkEquationAt(eqX, eqY, isVertical) {
         startY = prevY;
     }
 
+    // 一時的に数式ラインの座標を記録する配列
+    const lineCoords = [];
+
+    // 2. 開始地点から正方向に進みながら、ブロックが連続する限り文字と座標を回収
     let currentX = startX;
     let currentY = startY;
     while (
@@ -206,16 +204,28 @@ function checkEquationAt(eqX, eqY, isVertical) {
         isAnyBlock(map[currentY][currentX])
     ) {
         formulaTokens.push(parseTileToFormulaString(map[currentY][currentX]));
+        lineCoords.push(`${currentX},${currentY}`);
         currentX += dx;
         currentY += dy;
     }
 
-    return isValidEquation(formulaTokens);
+    // 3. 正しい等式か判定
+    const isSuccess = isValidEquation(formulaTokens);
+    
+    // 式が成立しているなら、そのライン上にあるブロックの座標を光らせる対象として登録
+    if (isSuccess) {
+        lineCoords.forEach(coord => satisfiedBlockCoords.add(coord));
+    }
+
+    return isSuccess;
 }
 
 // マップ全体のクリア条件を判定する関数
 function checkAllClearConditions() {
     if (map.length === 0 || isStageCleared) return;
+
+    // 毎スキャン時に一度発光座標リストをリセット
+    satisfiedBlockCoords.clear();
 
     let totalEqualsCount = 0;
     let satisfiedEqualsCount = 0;
@@ -341,18 +351,31 @@ function update() {
     }
 }
 
-// ブロックの装飾と文字を描画する関数
-function drawBlock(style, px, py) {
+// 【機能拡張】ブロックの装飾と文字を描画し、成立時はネオンのように発光させる関数
+function drawBlock(style, px, py, isSatisfied) {
     ctx.fillStyle = style.color;
     ctx.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
+    // 固定ブロックの赤枠
     if (style.isImmovable) {
         ctx.strokeStyle = "#ff4d4d";
         ctx.lineWidth = 3;
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
     }
 
-    ctx.fillStyle = "#ffffff";
+    // 式が成立している場合、黄緑色（#4dff4d）の強力な発光枠線を重ねて描画する
+    if (isSatisfied) {
+        ctx.save();
+        ctx.strokeStyle = "#4dff4d";
+        ctx.lineWidth = 3;
+        // ネオンのようなグロー効果（ぼかし）をブラウザの標準機能で付与
+        ctx.shadowColor = "#4dff4d";
+        ctx.shadowBlur = 8;
+        ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.restore();
+    }
+
+    ctx.fillStyle = style.textColor || "#ffffff";
     ctx.font = "bold 16px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -387,7 +410,9 @@ function draw() {
                     const isMoving = movingBlocks.some(b => Math.floor(b.tx / TILE_SIZE) === x && Math.floor(b.ty / TILE_SIZE) === y);
                     if (!isMoving) {
                         const style = getBlockStyle(tileValue);
-                        drawBlock(style, x * TILE_SIZE, y * TILE_SIZE);
+                        // 現在の座標が成立中の数式リストに含まれるか確認して引き渡す
+                        const isSatisfied = satisfiedBlockCoords.has(`${x},${y}`);
+                        drawBlock(style, x * TILE_SIZE, y * TILE_SIZE, isSatisfied);
                     }
                 }
             }
@@ -397,22 +422,26 @@ function draw() {
     // アニメーション中のブロックを描画
     movingBlocks.forEach(b => {
         const style = getBlockStyle(b.value);
-        drawBlock(style, b.px, b.py);
+        const bx = Math.floor(b.tx / TILE_SIZE);
+        const by = Math.floor(b.ty / TILE_SIZE);
+        const isSatisfied = satisfiedBlockCoords.has(`${bx},${by}`);
+        drawBlock(style, b.px, b.py, isSatisfied);
     });
 
     // プレイヤーの描画（緑色）
     ctx.fillStyle = "#4dff4d";
     ctx.fillRect(player.px, player.py, TILE_SIZE - 1, TILE_SIZE - 1);
 
-    // ステージクリア時のオーバーレイUI表示
+    // 全画面オーバーレイを排した、ステージクリア時のシンプルなテキスト直接描画
     if (isStageCleared) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
         ctx.fillStyle = "#4dff4d";
         ctx.font = "bold 32px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
+        
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 6;
+        ctx.strokeText("STAGE CLEAR!", canvas.width / 2, canvas.height / 2);
         ctx.fillText("STAGE CLEAR!", canvas.width / 2, canvas.height / 2);
     }
 }

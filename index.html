@@ -2,41 +2,39 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Math Puzzle Quest</title>
     <style>
-        /* 全体の基本デザイン設定 */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        body {
+        /* 【修正】ブラウザ自体のスクロールやバウンス挙動を完全に禁止する設定 */
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed; /* 画面全体を固定してスクロールの発生を防ぐ */
+            overscroll-behavior: none; /* スマホ特有の引っ張りバウンスを禁止 */
             background-color: #0f1115;
             color: #e2e8f0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            min-height: 100vh;
-            padding: 15px 10px;
-            overflow-x: hidden;
+            padding: 10px;
         }
 
         /* ヘッダーエリア */
         header {
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             width: 100%;
             max-width: 480px;
         }
 
         header h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 800;
             letter-spacing: 0.05em;
             background: linear-gradient(45deg, #ff3366, #ff9933, #33ccff, #11ff22);
@@ -49,19 +47,20 @@
         .how-to-play-container {
             width: 100%;
             max-width: 480px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             background-color: #151922;
             border: 1px solid #2d3748;
             border-radius: 10px;
             overflow: hidden;
+            z-index: 10;
         }
 
         .accordion-header {
             width: 100%;
-            padding: 11px 14px;
+            padding: 10px 14px;
             background-color: #1a202c;
             color: #33ccff;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             text-align: left;
             border: none;
@@ -78,7 +77,7 @@
         }
 
         .accordion-icon {
-            font-size: 11px;
+            font-size: 10px;
             transition: transform 0.2s ease;
             color: #ff3366;
         }
@@ -88,26 +87,26 @@
             overflow: hidden;
             transition: max-height 0.25s ease-out;
             background-color: #151922;
-            font-size: 12px;
-            line-height: 1.6;
+            font-size: 11px;
+            line-height: 1.5;
             color: #cbd5e1;
         }
 
         .accordion-body {
-            padding: 12px 14px;
+            padding: 10px 14px;
         }
 
         .accordion-body p {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .accordion-body ul {
-            margin-left: 18px;
-            margin-bottom: 10px;
+            margin-left: 16px;
+            margin-bottom: 8px;
         }
 
         .accordion-body li {
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         /* 明確でカラフルな強調色定義 */
@@ -147,7 +146,7 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
         canvas {
@@ -159,10 +158,10 @@
             width: 100%;
             max-width: 480px;
             text-align: right;
-            font-size: 11px;
+            font-size: 10px;
             color: #4a5568;
             padding-right: 14px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             font-family: monospace;
             letter-spacing: 0.05em;
         }
@@ -189,9 +188,9 @@
             background-color: #1a202c;
             color: #ff9933;
             border: 1px solid #4a5568;
-            padding: 14px 20px;
+            padding: 12px 18px;
             border-radius: 12px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             cursor: pointer;
             display: flex;
@@ -208,7 +207,7 @@
         }
 
         .undo-btn span {
-            font-size: 10px;
+            font-size: 9px;
             color: #a0aec0;
         }
 
@@ -219,8 +218,8 @@
                 ".    up    ."
                 "left  .    right"
                 ".    down  .";
-            grid-template-columns: repeat(3, 46px);
-            grid-template-rows: repeat(3, 46px);
+            grid-template-columns: repeat(3, 44px);
+            grid-template-rows: repeat(3, 44px);
             gap: 4px;
             justify-content: flex-end;
             margin-right: 10px;
@@ -231,7 +230,7 @@
             color: #ffffff;
             border: 1px solid #4a5568;
             border-radius: 10px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             cursor: pointer;
             display: flex;
@@ -288,7 +287,7 @@
     <div id="ui-container">
         <div class="undo-wrapper">
             <button id="btn-undo" class="undo-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff9933" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff9933" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 7v6h6"></path>
                     <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
                 </svg>
@@ -319,6 +318,15 @@
                 content.style.maxHeight = "0";
             }
         });
+
+        // 【新設】放置対策：画面内のどこかを触ったとき、自動で強制的に画面スクロール位置を最上部に引き戻す
+        document.addEventListener('touchstart', () => {
+            window.scrollTo(0, 0);
+        }, { passive: true });
+        
+        document.addEventListener('touchend', () => {
+            window.scrollTo(0, 0);
+        }, { passive: true });
     </script>
 </body>
 </html>

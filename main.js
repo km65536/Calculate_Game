@@ -1,5 +1,5 @@
-// 【バージョン更新】コンテナのタグ全体の右寄り干渉をクリア ver 1.1.7
-const GAME_VERSION = "ver 1.1.7";
+// 【バージョン更新】全体の横幅ズレとバージョン見切れを完全根絶 ver 1.1.8
+const GAME_VERSION = "ver 1.1.8";
 
 const versionElement = document.getElementById("version-display");
 if (versionElement) {
@@ -53,8 +53,9 @@ async function loadMapCSV(url) {
             }
         }
 
+        // 純粋なビューポート幅から余白(24px)を正確に引き算
         const clientWidth = document.documentElement.clientWidth;
-        const availableWidth = Math.min(480, clientWidth) - 32;
+        const availableWidth = Math.min(440, clientWidth) - 24;
 
         const clientHeight = document.documentElement.clientHeight;
         const availableHeight = clientHeight - 310;
@@ -155,7 +156,6 @@ function getBlockStyle(tileValue) {
     return { color: "#333333", text: "", isImmovable: false, isVerticalSign: false };
 }
 
-// マスの中身を eval() で計算できる文字列用のパーツ（トークン）に変換する関数
 function parseTileToFormulaString(tileValue) {
     if (tileValue >= 11 && tileValue <= 19) return String(tileValue - 10);
     if (tileValue >= 31 && tileValue <= 39) return String(tileValue - 30);
@@ -166,6 +166,7 @@ function parseTileToFormulaString(tileValue) {
     return signs[tileValue] || "";
 }
 
+// 組み立てた数式の文字列が、正しい等式になっているか eval() を使って判別する関数
 function isValidEquation(formulaTokens) {
     const eqCount = formulaTokens.filter(t => t === "=").length;
     if (eqCount !== 1) return false;

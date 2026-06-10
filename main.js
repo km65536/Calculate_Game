@@ -1,10 +1,12 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// 1タイルのサイズ（ピクセル）
-const TILE_SIZE = 32;
-// アニメーションの移動速度
-const MOVE_SPEED = 4;
+// 【修正】固定値から、動的に変化する変数（let）に変更
+// 初期値として32を設定していますが、CSV読み込み時に自動で逆算・上書きされます
+let TILE_SIZE = 32;
+
+// アニメーションの移動速度（タイルの大きさに応じて後ほど内部調整されます）
+let MOVE_SPEED = 4;
 
 // マップデータを保持する配列
 let map = [];
@@ -35,7 +37,7 @@ async function loadMapCSV(url) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`Failed to load CSV: ${response.status}`);
+            throw new Error(`Failed to load CSV: ${status}`);
         }
         const text = await response.text();
         
@@ -59,11 +61,21 @@ async function loadMapCSV(url) {
             }
         }
 
+        // 【新設・復元】マップサイズ（横の最大マス数）に応じてタイルの大きさを動的に計算
+        // index.html側の最大コンテナ幅である 480px を基準としてマス目の幅を逆算します
+        const maxDisplayWidth = 480;
+        
+        // マップが極端に小さい場合でも大きくなりすぎないよう、最大値を48pxに制限
+        TILE_SIZE = Math.min(48, Math.floor(maxDisplayWidth / mapCols));
+        
+        // 1マスのサイズに合わせて、スムーズにアニメーションが割り切れる移動速度を再計算
+        MOVE_SPEED = Math.max(2, TILE_SIZE / 8);
+
         // マップデータの大きさに合わせて、Canvasの解像度をぴったりリサイズ
         canvas.width = mapCols * TILE_SIZE;
         canvas.height = mapRows * TILE_SIZE;
 
-        // プレイヤーの初期ピクセル座標を、検出したタイル位置に同期
+        // プレイヤーの初期ピクセル座標を、動的に決まったタイルサイズに同期
         player.px = player.x * TILE_SIZE;
         player.py = player.y * TILE_SIZE;
         
@@ -138,7 +150,6 @@ function getBlockStyle(tileValue) {
     if (tileValue >= 11 && tileValue <= 19) {
         return { color: "#3399ff", text: String(tileValue - 10), isImmovable: false, isVerticalSign: false };
     } 
-    // 記号ブロックの色を黄色から見やすい鮮やかな紫（#b77eff）に変更
     if (tileValue >= 21 && tileValue <= 28) {
         const signs = { 21: "＋", 22: "－", 23: "×", 24: "÷", 25: "＝", 26: "＝", 27: "（", 28: "）" };
         return { color: "#b77eff", text: signs[tileValue], isImmovable: false, isVerticalSign: (tileValue === 26) };
@@ -146,7 +157,6 @@ function getBlockStyle(tileValue) {
     if (tileValue >= 31 && tileValue <= 39) {
         return { color: "#3399ff", text: String(tileValue - 30), isImmovable: true, isVerticalSign: false };
     } 
-    // 固定記号ブロックの色も紫に変更
     if (tileValue >= 41 && tileValue <= 48) {
         const signs = { 41: "＋", 42: "－", 43: "×", 44: "÷", 45: "＝", 46: "＝", 47: "（", 48: "）" };
         return { color: "#b77eff", text: signs[tileValue], isImmovable: true, isVerticalSign: (tileValue === 46) };
@@ -367,23 +377,26 @@ function drawBlock(style, px, py, isSatisfied) {
 
     if (style.isImmovable) {
         ctx.strokeStyle = "#ff4d4d";
-        ctx.lineWidth = 3;
+        ctx.lineWidth = Math.max(2, TILE_SIZE / 10); // タイルサイズに合わせて枠線の太さも微調整
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
     }
 
     if (isSatisfied) {
         ctx.save();
         ctx.strokeStyle = "#4dff4d";
-        ctx.lineWidth = 3;
+        ctx.lineWidth = Math.max(2, TILE_SIZE / 10);
         ctx.shadowColor = "#4dff4d";
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = TILE_SIZE / 4; // 発光のぼかし幅もマスの大きさに同期
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
         ctx.restore();
     }
 
-    // 紫背景に白文字の視認性をさらに上げるため、テキストカラーの設定を調整
     ctx.fillStyle = style.textColor || "#ffffff";
-    ctx.font = "bold 16px sans-serif";
+    
+    // 【調整】タイルの大きさに応じて、フォントサイズ（文字の大きさ）も動的にスケール
+    const fontSize = Math.floor(TILE_SIZE * 0.5);
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 

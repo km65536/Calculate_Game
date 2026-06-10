@@ -136,11 +136,12 @@
             transform: rotate(180deg);
         }
 
-        /* ゲーム画面（Canvas）のラップ容器 */
+        /* 【重要修正】ゲーム画面全体を包むタグ（コンテナ）のスタイル調整 */
+        /* 下の要素の右寄せに影響されないよう、明示的に中央揃え（margin: 0 auto）を確定させます */
         #game-container {
-            width: 100%;
-            max-width: 480px;
-            box-sizing: border-box; /* 枠線を含めた計算に統一 */
+            width: auto;
+            max-width: 100%;
+            box-sizing: border-box;
             background-color: #000000;
             border: 2px solid #2d3748;
             border-radius: 12px;
@@ -149,12 +150,12 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-            margin-bottom: 4px;
+            margin: 0 auto 4px auto; /* 左右中央寄せを強制 */
         }
 
         canvas {
             display: block;
-            max-width: 100%; /* 親コンテナからはみ出すのをCSS側でも絶対阻止 */
+            max-width: 100%;
         }
 
         /* バージョン情報表示用のスタイル */
@@ -179,6 +180,7 @@
             gap: 15px;
             align-items: center;
             padding: 5px 10px;
+            box-sizing: border-box;
         }
 
         /* 1手戻す（UNDO）ボタンの配置 */
@@ -215,7 +217,8 @@
             color: #a0aec0;
         }
 
-        /* 十字キー（バーチャルパッド）の配置 */
+        /* 【重要修正】十字キー（バーチャルパッド）の配置 */
+        /* justify-content: flex-end を排し、margin-left: auto で自身の枠線内だけで右寄せを行います */
         .dpad-container {
             display: grid;
             grid-template-areas: 
@@ -225,8 +228,8 @@
             grid-template-columns: repeat(3, 44px);
             grid-template-rows: repeat(3, 44px);
             gap: 4px;
-            justify-content: flex-end;
-            margin-right: 10px;
+            margin-left: auto; /* 安全に右端へ寄せる */
+            margin-right: 4px;
         }
 
         .pad-btn {

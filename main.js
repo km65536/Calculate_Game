@@ -1,8 +1,6 @@
-// 【新設】ゲーム全体のバージョン管理定数
-// 今後プログラムを変更した際は、この数値を「1.1.1」「1.2.0」のように上げていきます。
-const GAME_VERSION = "ver 1.1.0";
+// 【バージョン更新】ver 1.1.2
+const GAME_VERSION = "ver 1.1.2";
 
-// 画面にバージョン情報を即座に反映
 const versionElement = document.getElementById("version-display");
 if (versionElement) {
     versionElement.innerText = GAME_VERSION;
@@ -11,16 +9,10 @@ if (versionElement) {
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// 固定値から、動的に変化する変数（let）に変更
 let TILE_SIZE = 32;
-
-// アニメーションの移動速度
 let MOVE_SPEED = 4;
-
-// マップデータを保持する配列
 let map = [];
 
-// プレイヤーのデータ
 const player = {
     x: 1,
     y: 1,
@@ -29,19 +21,11 @@ const player = {
     isMoving: false
 };
 
-// 動いているブロックの情報を管理する配列
 let movingBlocks = [];
-
-// 過去のマップとプレイヤーの状態を記録する履歴スタック（1手戻す機能用）
 const historyStack = [];
-
-// ステージクリアを管理するフラグ
 let isStageCleared = false;
+let satisfiedLineRects = [];
 
-// 現在成立している数式に含まれるブロックの座標（"x,y" の文字列）を記録するセット
-let satisfiedBlockCoords = new Set();
-
-// CSVファイルを読み込んで2次元配列に変換する関数
 async function loadMapCSV(url) {
     try {
         const response = await fetch(url);
@@ -53,7 +37,6 @@ async function loadMapCSV(url) {
         const rows = text.trim().split(/\r?\n/);
         map = rows.map(row => row.split(",").map(Number));
         
-        // --- マップ全体のループ処理 ---
         const mapRows = map.length;
         let mapCols = 0;
 
@@ -65,44 +48,41 @@ async function loadMapCSV(url) {
                 if (map[y][x] === 99) {
                     player.x = x;
                     player.y = y;
-                    map[y][x] = 0; // プレイヤーの初期位置は床（0）に置き換える
+                    map[y][x] = 0;
                 }
             }
         }
 
-        // マップサイズ（横の最大マス数）に応じてタイルの大きさを動的に計算
-        const maxDisplayWidth = 480;
+        // 【修正】スマホ端末ごとの物理的な画面の横幅をリアルタイムに取得
+        const windowWidth = window.innerWidth;
         
-        // マップが極端に小さい場合でも大きくなりすぎないよう、最大値を48pxに制限
-        TILE_SIZE = Math.min(48, Math.floor(maxDisplayWidth / mapCols));
+        // 画面幅（最大480px、スマホなら端末幅）から、外側の左右パディング(計24px分)を安全マージンとして差し引く
+        const availableWidth = Math.min(480, windowWidth) - 24;
         
-        // 1マスのサイズに合わせて、スムーズにアニメーションが割り切れる移動速度を再計算
+        // 割り出された安全な表示可能幅を、マップの横マス数で割り算して、絶対にはみ出さないTILE_SIZEを決定
+        TILE_SIZE = Math.min(48, Math.floor(availableWidth / mapCols));
+        
+        // 速度が極端に遅くならないよう、2以上の整数として再計算
         MOVE_SPEED = Math.max(2, TILE_SIZE / 8);
 
-        // マップデータの大きさに合わせて、Canvasの解像度をぴったりリサイズ
         canvas.width = mapCols * TILE_SIZE;
         canvas.height = mapRows * TILE_SIZE;
 
-        // プレイヤーの初期ピクセル座標を、動的に決まったタイルサイズに同期
         player.px = player.x * TILE_SIZE;
         player.py = player.y * TILE_SIZE;
         
-        // 各種状態の初期化
         historyStack.length = 0;
         isStageCleared = false;
-        satisfiedBlockCoords.clear();
+        satisfiedLineRects = [];
 
-        // ゲームループを開始
         gameLoop();
     } catch (error) {
         console.error("エラーが発生しました:", error);
     }
 }
 
-// 現在の状態（マップとプレイヤー位置）を履歴に保存する関数
 function saveToHistory() {
     const mapCopy = map.map(row => [...row]);
-    
     historyStack.push({
         map: mapCopy,
         playerX: player.x,
@@ -110,21 +90,17 @@ function saveToHistory() {
     });
 }
 
-// 1手前の状態に戻す関数
 function undo() {
     if (isStageCleared || player.isMoving || movingBlocks.length > 0 || historyStack.length === 0) return;
 
     const prevState = historyStack.pop();
-
     map = prevState.map;
     player.x = prevState.playerX;
     player.y = prevState.playerY;
-
     player.px = player.x * TILE_SIZE;
     player.py = player.y * TILE_SIZE;
 }
 
-// 該当のマスが「押して動かせるブロック」かどうかを判定する関数
 function isMovableBlock(tileValue) {
     return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 28);
 }
@@ -224,7 +200,8 @@ function checkEquationAt(eqX, eqY, isVertical) {
         startY = prevY;
     }
 
-    const lineCoords = [];
+    let endX = startX;
+    let endY = startY;
 
     let currentX = startX;
     let currentY = startY;
@@ -234,7 +211,8 @@ function checkEquationAt(eqX, eqY, isVertical) {
         isValidPartForDirection(map[currentY][currentX], isVertical)
     ) {
         formulaTokens.push(parseTileToFormulaString(map[currentY][currentX]));
-        lineCoords.push(`${currentX},${currentY}`);
+        endX = currentX;
+        endY = currentY;
         currentX += dx;
         currentY += dy;
     }
@@ -242,7 +220,7 @@ function checkEquationAt(eqX, eqY, isVertical) {
     const isSuccess = isValidEquation(formulaTokens);
     
     if (isSuccess) {
-        lineCoords.forEach(coord => satisfiedBlockCoords.add(coord));
+        satisfiedLineRects.push({ startX, startY, endX, endY, isVertical });
     }
 
     return isSuccess;
@@ -252,7 +230,7 @@ function checkEquationAt(eqX, eqY, isVertical) {
 function checkAllClearConditions() {
     if (map.length === 0 || isStageCleared) return;
 
-    satisfiedBlockCoords.clear();
+    satisfiedLineRects = [];
 
     let totalEqualsCount = 0;
     let satisfiedEqualsCount = 0;
@@ -378,8 +356,7 @@ function update() {
     }
 }
 
-// ブロックの装飾と文字を描画し、成立時はネオンのように発光させる関数
-function drawBlock(style, px, py, isSatisfied) {
+function drawBlock(style, px, py) {
     ctx.fillStyle = style.color;
     ctx.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
 
@@ -387,16 +364,6 @@ function drawBlock(style, px, py, isSatisfied) {
         ctx.strokeStyle = "#ff4d4d";
         ctx.lineWidth = Math.max(2, TILE_SIZE / 10);
         ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
-    }
-
-    if (isSatisfied) {
-        ctx.save();
-        ctx.strokeStyle = "#4dff4d";
-        ctx.lineWidth = Math.max(2, TILE_SIZE / 10);
-        ctx.shadowColor = "#4dff4d";
-        ctx.shadowBlur = TILE_SIZE / 4;
-        ctx.strokeRect(px + 1.5, py + 1.5, TILE_SIZE - 4, TILE_SIZE - 4);
-        ctx.restore();
     }
 
     ctx.fillStyle = style.textColor || "#ffffff";
@@ -418,11 +385,29 @@ function drawBlock(style, px, py, isSatisfied) {
     }
 }
 
-// 描画関数
+function drawSatisfiedLineGlow(rect) {
+    const startPxX = rect.startX * TILE_SIZE;
+    const startPxY = rect.startY * TILE_SIZE;
+    const endPxX = rect.endX * TILE_SIZE;
+    const endPxY = rect.endY * TILE_SIZE;
+
+    const rectWidth = (endPxX - startPxX) + TILE_SIZE;
+    const rectHeight = (endPxY - startPxY) + TILE_SIZE;
+
+    ctx.save();
+    ctx.strokeStyle = "#4dff4d";
+    ctx.lineWidth = Math.max(3, TILE_SIZE / 8);
+    
+    ctx.shadowColor = "#4dff4d";
+    ctx.shadowBlur = Math.max(8, TILE_SIZE / 3);
+    
+    ctx.strokeRect(startPxX + 1.5, startPxY + 1.5, rectWidth - 3, rectHeight - 3);
+    ctx.restore();
+}
+
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // マップの描画
     for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[y].length; x++) {
             if (map[y][x] === 1) {
@@ -437,24 +422,22 @@ function draw() {
                     const isMoving = movingBlocks.some(b => Math.floor(b.tx / TILE_SIZE) === x && Math.floor(b.ty / TILE_SIZE) === y);
                     if (!isMoving) {
                         const style = getBlockStyle(tileValue);
-                        const isSatisfied = satisfiedBlockCoords.has(`${x},${y}`);
-                        drawBlock(style, x * TILE_SIZE, y * TILE_SIZE, isSatisfied);
+                        drawBlock(style, x * TILE_SIZE, y * TILE_SIZE);
                     }
                 }
             }
         }
     }
 
-    // アニメーション中のブロックを描画
     movingBlocks.forEach(b => {
         const style = getBlockStyle(b.value);
-        const bx = Math.floor(b.tx / TILE_SIZE);
-        const by = Math.floor(b.ty / TILE_SIZE);
-        const isSatisfied = satisfiedBlockCoords.has(`${bx},${by}`);
-        drawBlock(style, b.px, b.py, isSatisfied);
+        drawBlock(style, b.px, b.py);
     });
 
-    // プレイヤーの描画（緑色）
+    satisfiedLineRects.forEach(rect => {
+        drawSatisfiedLineGlow(rect);
+    });
+
     ctx.fillStyle = "#4dff4d";
     ctx.fillRect(player.px, player.py, TILE_SIZE - 1, TILE_SIZE - 1);
 
@@ -471,14 +454,12 @@ function draw() {
     }
 }
 
-// メインのゲームループ
 function gameLoop() {
     update();
     draw();
     requestAnimationFrame(gameLoop);
 }
 
-// キーボード入力のイベントリスナー
 window.addEventListener("keydown", function(event) {
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
         event.preventDefault();
@@ -499,7 +480,6 @@ window.addEventListener("keydown", function(event) {
     }
 });
 
-// スマホ用バーチャルボタンのイベント設定
 const btns = [
     { id: "btn-up", dx: 0, dy: -1 },
     { id: "btn-down", dx: 0, dy: 1 },

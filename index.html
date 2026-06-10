@@ -39,13 +39,13 @@
             font-size: 20px;
             font-weight: 800;
             letter-spacing: 0.05em;
-            background: linear-gradient(45deg, #4dff4d, #3399ff);
+            background: linear-gradient(45deg, #ff3366, #ff9933, #33ccff, #11ff22);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        /* 【新設】スマホ版でも邪魔にならない遊び方アコーディオン */
+        /* 遊び方アコーディオン */
         .how-to-play-container {
             width: 100%;
             max-width: 480px;
@@ -58,9 +58,9 @@
 
         .accordion-header {
             width: 100%;
-            padding: 10px 14px;
+            padding: 11px 14px;
             background-color: #1a202c;
-            color: #4dff4d;
+            color: #33ccff;
             font-size: 13px;
             font-weight: bold;
             text-align: left;
@@ -80,7 +80,7 @@
         .accordion-icon {
             font-size: 11px;
             transition: transform 0.2s ease;
-            color: #a0aec0;
+            color: #ff3366;
         }
 
         .accordion-content {
@@ -89,7 +89,7 @@
             transition: max-height 0.25s ease-out;
             background-color: #151922;
             font-size: 12px;
-            line-height: 1.5;
+            line-height: 1.6;
             color: #cbd5e1;
         }
 
@@ -98,20 +98,37 @@
         }
 
         .accordion-body p {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .accordion-body ul {
             margin-left: 18px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .accordion-body li {
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
-        .highlight-text {
-            color: #ffcc00;
+        /* カラフルな強調色定義 */
+        .color-pink {
+            color: #ff3366;
+            font-weight: bold;
+        }
+        .color-orange {
+            color: #ff9933;
+            font-weight: bold;
+        }
+        .color-blue {
+            color: #33ccff;
+            font-weight: bold;
+        }
+        .color-green {
+            color: #22ff88;
+            font-weight: bold;
+        }
+        .color-purple {
+            color: #cc66ff;
             font-weight: bold;
         }
 
@@ -120,14 +137,13 @@
             transform: rotate(180deg);
         }
 
-        /* ゲーム画面（Canvas）のラップ容器 */
+        /* 【修正・復元】ゲーム画面（Canvas）のラップ容器 */
+        /* 固定のmax-widthによる縮小を廃止し、読み込まれたマップの実際のピクセル幅（js側で設定されるcanvasのwidth）にジャストフィットさせます */
         #game-container {
-            width: 100%;
-            max-width: 480px;
             background-color: #000000;
             border: 2px solid #2d3748;
             border-radius: 12px;
-            overflow: auto;
+            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -159,7 +175,7 @@
 
         .undo-btn {
             background-color: #1a202c;
-            color: #ffcc00;
+            color: #ff9933;
             border: 1px solid #4a5568;
             padding: 14px 20px;
             border-radius: 12px;
@@ -233,20 +249,20 @@
 
     <div class="how-to-play-container" id="how-to-play">
         <button class="accordion-header" id="accordion-toggle">
-            <span>遊び方とルールを表示</span>
+            <span>🎮 遊び方とルールを表示</span>
             <span class="accordion-icon">▼</span>
         </button>
         <div class="accordion-content" id="accordion-content">
             <div class="accordion-body">
                 <p>数字と記号のブロックを押し動かし、正しい等式を作るパズルゲームです。</p>
-                <p><span class="highlight-text">■ クリア条件</span><br>全ての「＝」を挟んだ左辺と右辺の計算結果が一致すると数式が<span class="highlight-text">黄緑色に発光</span>し、全面達成でステージクリアとなります。</p>
-                <p><span class="highlight-text">■ ブロックのルール</span></p>
+                <p><span class="color-pink">■ クリア条件</span><br>全ての「＝」を挟んだ左辺と右辺の計算結果が一致すると数式が<span class="color-green">黄緑色にネオン発光</span>し、全面達成でステージクリアとなります。</p>
+                <p><span class="color-blue">■ ブロックのルール</span></p>
                 <ul>
-                    <li><span class="highlight-text">青/黄ブロック:</span> 後ろから押して自由に移動可能（連続押しも可）。</li>
-                    <li><span class="highlight-text">赤枠付きブロック:</span> 固定されていて絶対に動きません。</li>
-                    <li><span class="highlight-text">（ ）ブロック:</span> 掛け算・割り算より優先して計算させたい式を挟み込みます。</li>
+                    <li><span class="color-cyan" style="color: #33ccff; font-weight: bold;">青 / 紫ブロック:</span> 後ろから押して自由に移動可能（連続押しも可）。</li>
+                    <li><span class="color-pink">赤枠付きブロック:</span> ガチガチに固定されていて絶対に動きません。</li>
+                    <li><span class="color-purple">（ ）ブロック:</span> 掛け算や割り算より先に計算させたい式を挟み込みます。</li>
                 </ul>
-                <p>※PC版は矢印キーで移動、<span class="highlight-text">Zキー</span>で1手戻せます。</p>
+                <p>※PC版は矢印キーで移動、<span class="color-orange">Zキー</span>で1手戻せます。</p>
             </div>
         </div>
     </div>
@@ -258,7 +274,7 @@
     <div id="ui-container">
         <div class="undo-wrapper">
             <button id="btn-undo" class="undo-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff9933" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 7v6h6"></path>
                     <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
                 </svg>
@@ -284,10 +300,8 @@
         toggleBtn.addEventListener('click', () => {
             const isOpen = container.classList.toggle('open');
             if (isOpen) {
-                // 内容の実際の高さに合わせて滑らかに広げる
                 content.style.maxHeight = content.scrollHeight + "px";
             } else {
-                // 閉じる
                 content.style.maxHeight = "0";
             }
         });

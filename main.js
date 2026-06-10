@@ -1,5 +1,5 @@
-// 【バージョン更新】リサイズ計算のバグを完全修正 ver 1.1.6
-const GAME_VERSION = "ver 1.1.6";
+// 【バージョン更新】コンテナのタグ全体の右寄り干渉をクリア ver 1.1.7
+const GAME_VERSION = "ver 1.1.7";
 
 const versionElement = document.getElementById("version-display");
 if (versionElement) {
@@ -53,35 +53,23 @@ async function loadMapCSV(url) {
             }
         }
 
-        // --- 【修正】厳格な画面サイズ（クライアント領域）の把握と動的リサイズ ---
-        
-        // スクロールバーやセーフエリアを除外した、純粋な表示可能領域の横幅を取得
         const clientWidth = document.documentElement.clientWidth;
-        // 左右の余白（パディング）として計32px分を確実に差し引く
         const availableWidth = Math.min(480, clientWidth) - 32;
 
-        // 端末全体の高さからUIパーツ群の固定高さを差し引く
         const clientHeight = document.documentElement.clientHeight;
         const availableHeight = clientHeight - 310;
 
-        // 縦・横それぞれの基準で1マスのサイズを割り出す
         const sizeBasedOnWidth = Math.floor(availableWidth / mapCols);
         const sizeBasedOnHeight = Math.floor(availableHeight / mapRows);
 
-        // 両方のうち、より小さく綺麗に画面内に収まるほうを自動採用
         TILE_SIZE = Math.min(48, sizeBasedOnWidth, sizeBasedOnHeight);
-        
-        // 【バグ修正】見切れの原因になっていた16pxの制限を8pxまで緩和し、大きなマップでも確実に画面内に収める
         if (TILE_SIZE < 8) TILE_SIZE = 8;
         
-        // アニメーションの移動速度を再決定
         MOVE_SPEED = Math.max(2, TILE_SIZE / 8);
 
-        // Canvasの解像度を設定
         canvas.width = mapCols * TILE_SIZE;
         canvas.height = mapRows * TILE_SIZE;
 
-        // 包む親コンテナの大きさもCanvasサイズに厳密にジャストフィットさせる
         const gameContainer = document.getElementById("game-container");
         if (gameContainer) {
             gameContainer.style.width = `${canvas.width + 4}px`;
@@ -127,17 +115,14 @@ function isMovableBlock(tileValue) {
     return (tileValue >= 11 && tileValue <= 19) || (tileValue >= 21 && tileValue <= 28);
 }
 
-// 該当のマスが「絶対に動かない固定ブロック」かどうかを判定する関数
 function isImmovableBlock(tileValue) {
     return (tileValue >= 31 && tileValue <= 39) || (tileValue >= 41 && tileValue <= 48);
 }
 
-// 該当のマスが「何らかのブロック」かどうかを判定する関数
 function isAnyBlock(tileValue) {
     return isMovableBlock(tileValue) || isImmovableBlock(tileValue);
 }
 
-// 指定した方向（縦か横か）の式構成パーツとして有効なブロックか判定する関数
 function isValidPartForDirection(tileValue, isVertical) {
     if (!isAnyBlock(tileValue)) return false;
 
@@ -151,7 +136,6 @@ function isValidPartForDirection(tileValue, isVertical) {
     return true;
 }
 
-// ブロックのタイプに応じた見た目と情報を取得する関数
 function getBlockStyle(tileValue) {
     if (tileValue >= 11 && tileValue <= 19) {
         return { color: "#3399ff", text: String(tileValue - 10), isImmovable: false, isVerticalSign: false };
@@ -182,7 +166,6 @@ function parseTileToFormulaString(tileValue) {
     return signs[tileValue] || "";
 }
 
-// 組み立てた数式の文字列が、正しい等式になっているか eval() を使って判別する関数
 function isValidEquation(formulaTokens) {
     const eqCount = formulaTokens.filter(t => t === "=").length;
     if (eqCount !== 1) return false;
@@ -205,7 +188,6 @@ function isValidEquation(formulaTokens) {
     }
 }
 
-// 特定の「＝」から繋がる式を、指定された方向（縦か横か）だけで抽出し、成否を判定する関数
 function checkEquationAt(eqX, eqY, isVertical) {
     const formulaTokens = [];
     const dx = isVertical ? 0 : 1;
@@ -248,7 +230,6 @@ function checkEquationAt(eqX, eqY, isVertical) {
     return isSuccess;
 }
 
-// マップ全体のクリア条件を判定する関数
 function checkAllClearConditions() {
     if (map.length === 0 || isStageCleared) return;
 
@@ -281,7 +262,6 @@ function checkAllClearConditions() {
     }
 }
 
-// 移動処理（アニメーションの開始トリガー）
 function movePlayer(dx, dy) {
     if (map.length === 0 || player.isMoving || isStageCleared) return;
 

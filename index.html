@@ -137,8 +137,11 @@
             transform: rotate(180deg);
         }
 
-        /* ゲーム画面（Canvas）のラップ容器 */
+        /* 【修正】ゲーム画面（Canvas）のラップ容器 */
+        /* max-width: 100% を追加し、幅狭スマホ画面からはみ出すのを防止 */
         #game-container {
+            width: 100%;
+            max-width: 480px;
             background-color: #000000;
             border: 2px solid #2d3748;
             border-radius: 12px;
@@ -154,7 +157,7 @@
             display: block;
         }
 
-        /* 【新設】バージョン情報表示用のスタイル */
+        /* バージョン情報表示用のスタイル */
         #version-display {
             width: 100%;
             max-width: 480px;

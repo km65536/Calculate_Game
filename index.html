@@ -137,8 +137,7 @@
             transform: rotate(180deg);
         }
 
-        /* 【修正・復元】ゲーム画面（Canvas）のラップ容器 */
-        /* 固定のmax-widthによる縮小を廃止し、読み込まれたマップの実際のピクセル幅（js側で設定されるcanvasのwidth）にジャストフィットさせます */
+        /* ゲーム画面（Canvas）のラップ容器 */
         #game-container {
             background-color: #000000;
             border: 2px solid #2d3748;
@@ -148,11 +147,24 @@
             justify-content: center;
             align-items: center;
             box-shadow: 0 8px 20px rgba(0,0,0,0.6);
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         canvas {
             display: block;
+        }
+
+        /* 【新設】バージョン情報表示用のスタイル */
+        #version-display {
+            width: 100%;
+            max-width: 480px;
+            text-align: right;
+            font-size: 11px;
+            color: #4a5568;
+            padding-right: 14px;
+            margin-bottom: 12px;
+            font-family: monospace;
+            letter-spacing: 0.05em;
         }
 
         /* 操作UIエリア */
@@ -270,6 +282,8 @@
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
     </div>
+
+    <div id="version-display">LOADING VERSION...</div>
 
     <div id="ui-container">
         <div class="undo-wrapper">
